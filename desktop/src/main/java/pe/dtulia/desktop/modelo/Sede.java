@@ -1,0 +1,9 @@
+package pe.dtulia.desktop.modelo;
+
+public record Sede(long id, String nombre, String direccion) {
+
+    @Override
+    public String toString() {
+        return nombre;
+    }
+}

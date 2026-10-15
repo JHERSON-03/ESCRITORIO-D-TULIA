@@ -1,0 +1,13 @@
+# --- Núcleo de la API ---
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30          # servidor ASGI (uvloop/httptools/watchfiles para --reload)
+
+# --- Acceso a datos (Supabase = PostgreSQL) ---
+psycopg[binary,pool]>=3.2,<4.0   # driver PostgreSQL + pool de conexiones
+
+# --- Configuración y validación ---
+pydantic-settings>=2.4           # lee variables desde .env de forma tipada
+email-validator>=2.2             # valida EmailStr en el login
+
+# --- Seguridad ---
+PyJWT>=2.9                       # tokens de sesión para la app de escritorio

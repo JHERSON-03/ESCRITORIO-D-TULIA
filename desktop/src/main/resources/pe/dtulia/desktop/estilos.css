@@ -1,0 +1,113 @@
+/* D'Tulia · tema de escritorio (JavaFX CSS) */
+
+.root {
+    -dt-vino: #6d1f3a;
+    -dt-vino-oscuro: #531530;
+    -dt-fondo: #f6f3f1;
+    -dt-borde: #e2d9d5;
+    -dt-suave: #6c6266;
+    -fx-accent: -dt-vino;
+    -fx-focus-color: -dt-vino;
+    -fx-faint-focus-color: #6d1f3a22;
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 13px;
+    -fx-background-color: -dt-fondo;
+}
+
+/* ---- Login ---- */
+.login {
+    -fx-background-color: white;
+}
+
+.marca {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-vino;
+}
+
+.subtitulo,
+.estado {
+    -fx-text-fill: -dt-suave;
+}
+
+.mensaje-error {
+    -fx-text-fill: #b42318;
+}
+
+/* ---- Botones ---- */
+.boton-primario {
+    -fx-background-color: -dt-vino;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 8 18;
+    -fx-cursor: hand;
+}
+
+.boton-primario:hover {
+    -fx-background-color: -dt-vino-oscuro;
+}
+
+/* ---- Ventana principal ---- */
+.cabecera {
+    -fx-background-color: -dt-vino;
+    -fx-padding: 10 16;
+}
+
+.cabecera .label {
+    -fx-text-fill: white;
+}
+
+.cabecera-marca {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.formulario {
+    -fx-padding: 14;
+}
+
+.seccion {
+    -fx-background-color: white;
+    -fx-background-radius: 6;
+    -fx-border-color: -dt-borde;
+    -fx-border-radius: 6;
+    -fx-padding: 12;
+}
+
+.titulo-seccion {
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-suave;
+}
+
+.cliente {
+    -fx-font-weight: bold;
+}
+
+.total {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-vino;
+}
+
+/* ---- Tablas ---- */
+.numero {
+    -fx-alignment: CENTER-RIGHT;
+}
+
+.table-row-cell.stock-bajo,
+.leyenda-bajo {
+    -fx-background: #fff3dc;
+}
+
+.table-row-cell.sin-stock,
+.leyenda-sin {
+    -fx-background: #fde4e4;
+}
+
+.leyenda-bajo,
+.leyenda-sin {
+    -fx-background-color: -fx-background;
+    -fx-background-radius: 4;
+    -fx-padding: 2 8;
+}

@@ -1,0 +1,44 @@
+### Pruebas rápidas de la API con la extensión REST Client de VS Code
+@api = http://127.0.0.1:8000
+
+### 0. Sedes (no requiere sesión)
+GET {{api}}/catalogos/sedes
+
+### 1. Login (el token se guarda automáticamente en @token)
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "documento": "00000001", "password": "DTulia2026!", "sede_id": 1 }
+
+###
+@token = {{login.response.body.$.access_token}}
+
+### 2. Catálogo de licores con stock (filtro opcional ?tipo_producto_id=2)
+GET {{api}}/productos
+Authorization: Bearer {{token}}
+
+### 3. Entrada de stock (ENTRADA | MERMA | AJUSTE)
+POST {{api}}/inventario/movimientos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "producto_id": 8, "tipo": "ENTRADA", "cantidad": 24, "referencia": "LOTE 001" }
+
+### 4. Registrar venta (boleta, efectivo, clientes varios, tienda)
+POST {{api}}/comprobantes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tipo_comprobante_id": 1,
+  "metodo_pago_id": 1,
+  "canal": "TIENDA",
+  "items": [
+    { "producto_id": 8, "cantidad": 2 }
+  ]
+}
+
+### 5. Kardex de un producto
+GET {{api}}/inventario/kardex/8
+Authorization: Bearer {{token}}
