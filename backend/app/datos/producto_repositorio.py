@@ -12,6 +12,9 @@ _SELECT_PRODUCTOS = """
            tipo_producto_id,
            tipo_producto_nombre  as tipo_producto,
            tipo_producto_origen  as origen,
+           presentacion_id,
+           presentacion_nombre   as presentacion,
+           presentacion_unidades_caja as unidades_caja,
            stock_bajo
       from public.fn_productos_listar(%(buscar)s, %(tipo_id)s, %(stock_minimo)s)
 """
@@ -32,19 +35,19 @@ class ProductoRepositorio:
                 {"buscar": None, "tipo_id": None, "stock_minimo": stock_minimo, "id": producto_id},
             ).fetchone()
 
-    def crear(self, tipo_producto_id: int, nombre: str, precio: Decimal) -> int:
+    def crear(self, tipo_producto_id: int, nombre: str, precio: Decimal, presentacion_id: int) -> int:
         with obtener_conexion() as conn:
             return conn.execute(
-                "select producto_id from public.fn_producto_crear(%s, %s, %s)",
-                (tipo_producto_id, nombre, precio),
+                "select producto_id from public.fn_producto_crear(%s, %s, %s, %s)",
+                (tipo_producto_id, nombre, precio, presentacion_id),
             ).fetchone()["producto_id"]
 
     def actualizar(self, producto_id: int, tipo_producto_id: int | None, nombre: str | None,
-                   precio: Decimal | None) -> None:
+                   precio: Decimal | None, presentacion_id: int | None) -> None:
         with obtener_conexion() as conn:
             conn.execute(
-                "select 1 from public.fn_producto_actualizar(%s, %s, %s, %s)",
-                (producto_id, tipo_producto_id, nombre, precio),
+                "select 1 from public.fn_producto_actualizar(%s, %s, %s, %s, %s)",
+                (producto_id, tipo_producto_id, nombre, precio, presentacion_id),
             )
 
     def eliminar(self, producto_id: int) -> None:

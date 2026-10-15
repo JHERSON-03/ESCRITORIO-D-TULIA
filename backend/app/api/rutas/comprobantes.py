@@ -23,6 +23,6 @@ def registrar_venta(
     empleado: EmpleadoToken = Depends(empleado_actual),
     servicio: VentaServicio = Depends(servicio_ventas),
 ) -> ComprobanteOut:
-    """Emite boleta, factura o nota de venta en la sede de la sesión. El trigger
+    """Emite boleta, factura o nota de venta en el almacén (sede de la sesión). El trigger
     tr_descontar_stock_comprobante descuenta el stock en la misma transacción."""
     return servicio.emitir(solicitud, empleado)

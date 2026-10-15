@@ -7,6 +7,13 @@ class SedeOut(BaseModel):
     id: int
     nombre: str
     direccion: str
+    es_almacen: bool
+
+
+class PresentacionOut(BaseModel):
+    id: int
+    nombre: str
+    unidades_caja: int
 
 
 class TipoProductoOut(BaseModel):

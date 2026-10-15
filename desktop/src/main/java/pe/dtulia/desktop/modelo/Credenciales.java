@@ -1,4 +1,4 @@
 package pe.dtulia.desktop.modelo;
 
-public record Credenciales(String documento, String password, long sedeId) {
+public record Credenciales(String documento, String password) {
 }

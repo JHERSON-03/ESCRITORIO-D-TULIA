@@ -2,7 +2,9 @@ package pe.dtulia.desktop.vista;
 
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -41,6 +43,7 @@ import java.util.function.Function;
 /**
  * Entradas, mermas y ajustes de stock (POST /inventario/movimientos) y Kardex del producto.
  * Visible para ADMINISTRADOR y ALMACENERO; solo el administrador puede anular movimientos.
+ * Las entradas se pueden registrar en cajas + unidades sueltas.
  */
 public class FrmMovimientos extends BorderPane {
 
@@ -48,6 +51,10 @@ public class FrmMovimientos extends BorderPane {
     private static final String MERMA = "MERMA";
     private static final String AJUSTE = "AJUSTE";
     private static final Set<String> ANULABLES = Set.of(ENTRADA, MERMA, AJUSTE);
+    private static final String TODOS = "TODOS";
+    /** Opciones del filtro del Kardex: los tipos manuales más los que genera la base de datos. */
+    private static final List<String> FILTROS_KARDEX = List.of(TODOS, ENTRADA, MERMA, AJUSTE, "SALIDA_VENTA",
+            "SALIDA_VIAJE", "RETORNO_VIAJE", "ANULACION");
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final Servicios servicios;
@@ -58,12 +65,18 @@ public class FrmMovimientos extends BorderPane {
     private final ComboBox<String> cboTipo = new ComboBox<>(FXCollections.observableArrayList(ENTRADA, MERMA, AJUSTE));
     private final Label lblCantidad = new Label("Cantidad");
     private final Spinner<Integer> spnCantidad = new Spinner<>();
+    private final CampoCajas campoCajas = new CampoCajas();
     private final TextField txtReferencia = new TextField();
     private final Label lblAyuda = new Label();
     private final Label lblStockActual = new Label("—");
     private final Button btnRegistrar = new Button("Registrar movimiento");
     private final ObservableList<Movimiento> movimientos = FXCollections.observableArrayList();
-    private final TableView<Movimiento> tablaKardex = new TableView<>(movimientos);
+    private final FilteredList<Movimiento> movimientosVisibles = new FilteredList<>(movimientos);
+    private final TableView<Movimiento> tablaKardex = new TableView<>(movimientosVisibles);
+    private final ComboBox<String> cboFiltro = new ComboBox<>(FXCollections.observableArrayList(FILTROS_KARDEX));
+    private final Button btnMostrar = new Button("Mostrar");
+    private String filtroAplicado = TODOS;
+    private final Label lblResumen = new Label();
     private final Button btnAnular = new Button("Anular movimiento seleccionado");
 
     public FrmMovimientos(Servicios servicios, Empleado empleado, Runnable alCambiarStock) {
@@ -77,8 +90,11 @@ public class FrmMovimientos extends BorderPane {
 
         cboTipo.valueProperty().addListener((obs, antes, ahora) -> adaptarAlTipo());
         cboProducto.valueProperty().addListener((obs, antes, ahora) -> {
-            lblStockActual.setText(ahora == null ? "—" : ahora.stock() + " unidades");
+            lblStockActual.setText(ahora == null ? "—"
+                    : ahora.stock() + " unidades (" + Ui.cajas(ahora.stock(), ahora.unidadesCaja()) + ")");
+            campoCajas.setProducto(ahora);
             cargarKardex();
+            actualizarResumen();
         });
         cboTipo.setValue(ENTRADA);
         cargarProductos();
@@ -93,7 +109,7 @@ public class FrmMovimientos extends BorderPane {
         cboProducto.setConverter(new StringConverter<>() {
             @Override
             public String toString(Producto p) {
-                return p == null ? "" : p.tipoProducto() + " · " + p.nombre();
+                return p == null ? "" : p.tipoProducto() + " · " + p.nombreCompleto();
             }
 
             @Override
@@ -117,7 +133,10 @@ public class FrmMovimientos extends BorderPane {
         grilla.setHgap(10);
         grilla.setVgap(8);
         grilla.addRow(0, new Label("Producto"), cboProducto, new Label("Stock actual"), lblStockActual);
-        grilla.addRow(1, new Label("Movimiento"), cboTipo, lblCantidad, spnCantidad);
+        // ENTRADA: cajas + unidades; MERMA y AJUSTE: unidades
+        HBox cantidad = new HBox(spnCantidad, campoCajas);
+        cantidad.setAlignment(Pos.CENTER_LEFT);
+        grilla.addRow(1, new Label("Movimiento"), cboTipo, lblCantidad, cantidad);
         grilla.addRow(2, new Label("Referencia"), txtReferencia);
         GridPane.setColumnSpan(txtReferencia, 3);
         grilla.add(lblAyuda, 1, 3, 3, 1);
@@ -139,7 +158,6 @@ public class FrmMovimientos extends BorderPane {
                 columna("Stock previo", m -> String.valueOf(m.stockPrevio()), 100, true),
                 columna("Stock final", m -> String.valueOf(m.stockPosterior()), 100, true),
                 columna("Referencia", m -> m.referencia() == null ? "" : m.referencia(), 260, false)));
-        tablaKardex.setPlaceholder(new Label("Seleccione un producto para ver sus movimientos"));
         tablaKardex.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         VBox.setVgrow(tablaKardex, Priority.ALWAYS);
 
@@ -147,15 +165,58 @@ public class FrmMovimientos extends BorderPane {
         btnAnular.setManaged(empleado.esAdministrador());
         btnAnular.disableProperty().bind(tablaKardex.getSelectionModel().selectedItemProperty().isNull());
         btnAnular.setOnAction(e -> anular());
+        lblResumen.getStyleClass().add("estado");
         Region espacio = new Region();
         HBox.setHgrow(espacio, Priority.ALWAYS);
-        HBox pie = new HBox(espacio, btnAnular);
+        HBox pie = new HBox(lblResumen, espacio, btnAnular);
+        pie.setAlignment(Pos.CENTER_LEFT);
 
-        VBox kardex = Ui.seccion("Kardex del producto (más reciente primero)", tablaKardex, pie);
+        movimientosVisibles.addListener((ListChangeListener<Movimiento>) cambio -> actualizarResumen());
+        actualizarResumen();
+
+        VBox kardex = Ui.seccion("Kardex del producto (más reciente primero)", crearFiltro(), tablaKardex, pie);
         VBox.setVgrow(kardex, Priority.ALWAYS);
         VBox contenedor = new VBox(kardex);
         contenedor.setPadding(new Insets(10, 0, 0, 0));
         return contenedor;
+    }
+
+    /** Desplegable con el tipo de movimiento y botón Mostrar (p. ej. ver solo las SALIDA_VENTA). */
+    private HBox crearFiltro() {
+        cboFiltro.setValue(TODOS);
+        cboFiltro.setPrefWidth(200);
+        btnMostrar.getStyleClass().add("boton-primario");
+        btnMostrar.setOnAction(e -> mostrarFiltrado());
+        HBox barra = new HBox(10, new Label("Tipo de movimiento"), cboFiltro, btnMostrar);
+        barra.setAlignment(Pos.CENTER_LEFT);
+        return barra;
+    }
+
+    /** Vuelve a leer el Kardex guardado y deja solo el tipo elegido en el desplegable. */
+    private void mostrarFiltrado() {
+        if (cboProducto.getValue() == null) {
+            Ui.mostrarError(ventana(), "Seleccione un producto.");
+            return;
+        }
+        String tipo = cboFiltro.getValue();
+        filtroAplicado = tipo;
+        movimientosVisibles.setPredicate(TODOS.equals(tipo) ? null : m -> tipo.equals(m.tipo()));
+        cargarKardex();
+    }
+
+    private void actualizarResumen() {
+        int total = movimientos.size();
+        int visibles = movimientosVisibles.size();
+        lblResumen.setText(total == 0 ? "" : String.format("Mostrando %d de %d movimientos", visibles, total));
+        String aviso;
+        if (cboProducto.getValue() == null) {
+            aviso = "Seleccione un producto para ver sus movimientos";
+        } else if (total == 0) {
+            aviso = "Este producto aún no tiene movimientos";
+        } else {
+            aviso = "Este producto no tiene movimientos de tipo " + filtroAplicado;
+        }
+        tablaKardex.setPlaceholder(new Label(aviso));
     }
 
     // ------------------------------------------------------------------ datos
@@ -166,7 +227,8 @@ public class FrmMovimientos extends BorderPane {
                 lista -> {
                     Producto anterior = cboProducto.getValue();
                     List<Producto> ordenados = lista.stream()
-                            .sorted(Comparator.comparing(Producto::tipoProducto).thenComparing(Producto::nombre))
+                            .sorted(Comparator.comparing(Producto::tipoProducto).thenComparing(Producto::nombre)
+                                    .thenComparingLong(Producto::presentacionId))
                             .toList();
                     cboProducto.getItems().setAll(ordenados);
                     if (anterior != null) {
@@ -192,7 +254,12 @@ public class FrmMovimientos extends BorderPane {
     private void adaptarAlTipo() {
         String tipo = cboTipo.getValue();
         boolean ajuste = AJUSTE.equals(tipo);
+        boolean entrada = ENTRADA.equals(tipo);
         lblCantidad.setText(ajuste ? "Stock contado" : "Cantidad");
+        spnCantidad.setVisible(!entrada);
+        spnCantidad.setManaged(!entrada);
+        campoCajas.setVisible(entrada);
+        campoCajas.setManaged(entrada);
         txtReferencia.setPromptText(switch (tipo) {
             case MERMA -> "Motivo (obligatorio): rotura, vencimiento, degustación…";
             case AJUSTE -> "Motivo (opcional): inventario físico de fin de mes…";
@@ -212,8 +279,8 @@ public class FrmMovimientos extends BorderPane {
             Ui.mostrarError(ventana(), "Seleccione un producto.");
             return;
         }
-        int valor = Ui.leerEntero(spnCantidad);
         boolean ajuste = AJUSTE.equals(tipo);
+        int valor = ENTRADA.equals(tipo) ? campoCajas.total() : Ui.leerEntero(spnCantidad);
         if (valor < (ajuste ? 0 : 1)) {
             Ui.mostrarError(ventana(), ajuste ? "Ingrese el stock contado (0 o más)." : "Ingrese una cantidad mayor a 0.");
             return;
@@ -232,10 +299,11 @@ public class FrmMovimientos extends BorderPane {
                 movimiento -> {
                     btnRegistrar.setDisable(false);
                     Ui.mostrarInfo(ventana(), "Movimiento registrado", String.format(
-                            "%s de %s%nStock: %d → %d", movimiento.tipo(), producto.nombre(),
+                            "%s de %s%nStock: %d → %d", movimiento.tipo(), producto.nombreCompleto(),
                             movimiento.stockPrevio(), movimiento.stockPosterior()));
                     txtReferencia.clear();
                     spnCantidad.getValueFactory().setValue(1);
+                    campoCajas.limpiar();
                     refrescarTodo();
                 },
                 mensaje -> {
@@ -251,7 +319,7 @@ public class FrmMovimientos extends BorderPane {
         }
         if (!ANULABLES.contains(movimiento.tipo())) {
             Ui.mostrarError(ventana(), "Solo se pueden anular entradas, mermas y ajustes. "
-                    + "Las ventas se corrigen desde su comprobante.");
+                    + "Las ventas se corrigen desde su comprobante y los viajes desde la pestaña Viajes.");
             return;
         }
 

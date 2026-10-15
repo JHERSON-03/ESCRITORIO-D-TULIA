@@ -2,7 +2,8 @@
 -- D'Tulia · CAPA DE DATOS · 02 · Datos iniciales
 -- ---------------------------------------------------------------------
 -- Completa los catálogos que la aplicación necesita y que están vacíos.
--- NO toca sedes, tipo_productos ni productos (ya tienen tus datos).
+-- De tus datos solo marca TRUJILLO como almacén, crea las demás
+-- presentaciones de cada producto y pasa las ventas al almacén.
 -- Es idempotente: solo inserta lo que no existe.
 --
 -- Usuario inicial (cambia la contraseña al empezar a usar el sistema):
@@ -39,3 +40,35 @@ on conflict (cliente_dni_ruc) do nothing;
 -- Administrador inicial (solo si aún no existe)
 select fn_empleado_registrar('ADMINISTRADOR', '00000001', 'ADMINISTRADOR D''TULIA', 'DTulia2026!')
  where not exists (select 1 from empleados where empleado_documento = '00000001');
+
+-- Todo sale del almacén de Trujillo; las demás sedes son ciudades de destino
+update sedes set sede_es_almacen = true
+ where upper(sede_nombre) = 'TRUJILLO'
+   and not exists (select 1 from sedes where sede_es_almacen);
+
+-- Las ventas del sistema se hacen en el almacén (antes tomaban la sede del login)
+update pedidos set pedido_sede_id = (select sede_id from sedes where sede_es_almacen)
+ where exists (select 1 from sedes where sede_es_almacen)
+   and pedido_sede_id <> (select sede_id from sedes where sede_es_almacen);
+
+-- Por única vez: cada licor en todas las presentaciones, con precio y stock en 0
+-- (los existentes quedaron como 750 ML). No se repite si ya se generaron, para
+-- no recrear presentaciones que luego se eliminen a propósito.
+do $$
+begin
+  if not exists (select 1
+                   from productos p
+                   join presentaciones pr on pr.presentacion_id = p.producto_presentacion_id
+                  where pr.presentacion_nombre <> '750 ML') then
+    insert into productos (producto_tipo_id, producto_nombre, producto_precio, producto_stock_actual,
+                           producto_presentacion_id)
+    select p.producto_tipo_id, p.producto_nombre, 0, 0, pr.presentacion_id
+      from productos p
+      join presentaciones base on base.presentacion_id = p.producto_presentacion_id
+                              and base.presentacion_nombre = '750 ML'
+     cross join presentaciones pr
+     where pr.presentacion_nombre <> '750 ML'
+     order by p.producto_id, pr.presentacion_orden
+    on conflict (producto_nombre, producto_presentacion_id) do nothing;
+  end if;
+end $$;

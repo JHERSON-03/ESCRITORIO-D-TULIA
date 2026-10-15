@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 class LoginIn(BaseModel):
     documento: str = Field(pattern=r"^[A-Za-z0-9]{8,20}$", description="Documento del empleado (DNI)")
     password: str = Field(min_length=1, max_length=128)
-    sede_id: int = Field(gt=0, description="Sede en la que trabajará durante la sesión")
 
 
 class EmpleadoSesion(BaseModel):

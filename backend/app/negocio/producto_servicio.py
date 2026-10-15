@@ -21,13 +21,13 @@ class ProductoServicio:
         return ProductoOut.model_validate(fila)
 
     def crear(self, datos: ProductoCrear) -> ProductoOut:
-        producto_id = self._repo.crear(datos.tipo_producto_id, datos.nombre, datos.precio)
+        producto_id = self._repo.crear(datos.tipo_producto_id, datos.nombre, datos.precio, datos.presentacion_id)
         return self.obtener(producto_id)
 
     def actualizar(self, producto_id: int, datos: ProductoActualizar) -> ProductoOut:
         if not datos.model_dump(exclude_none=True):
             raise ErrorNegocio("No se enviaron campos para actualizar")
-        self._repo.actualizar(producto_id, datos.tipo_producto_id, datos.nombre, datos.precio)
+        self._repo.actualizar(producto_id, datos.tipo_producto_id, datos.nombre, datos.precio, datos.presentacion_id)
         return self.obtener(producto_id)
 
     def eliminar(self, producto_id: int) -> None:

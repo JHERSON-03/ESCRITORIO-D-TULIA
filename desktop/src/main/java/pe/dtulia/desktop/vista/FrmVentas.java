@@ -121,8 +121,8 @@ public class FrmVentas extends BorderPane {
         cboProducto.setConverter(new StringConverter<>() {
             @Override
             public String toString(Producto p) {
-                return p == null ? "" : String.format("%s · %s — %s (stock %d)",
-                        p.tipoProducto(), p.nombre(), Ui.soles(p.precio()), p.stock());
+                return p == null ? "" : String.format("%s · %s — %s (stock %d)", p.tipoProducto(),
+                        p.nombreCompleto(), p.tienePrecio() ? Ui.soles(p.precio()) : "SIN PRECIO", p.stock());
             }
 
             @Override
@@ -143,7 +143,7 @@ public class FrmVentas extends BorderPane {
         filaAgregar.setAlignment(Pos.CENTER_LEFT);
 
         tablaCarrito.getColumns().setAll(List.of(
-                columna("Producto", l -> l.producto().nombre(), 300, false),
+                columna("Producto", l -> l.producto().nombreCompleto(), 300, false),
                 columna("Tipo", l -> l.producto().tipoProducto(), 120, false),
                 columna("Cantidad", l -> String.valueOf(l.cantidad()), 90, true),
                 columna("P. unitario", l -> Ui.soles(l.producto().precio()), 110, true),
@@ -213,7 +213,7 @@ public class FrmVentas extends BorderPane {
         Ui.alCompletar(servicios.productos().listar(),
                 lista -> cboProducto.getItems().setAll(lista.stream()
                         .filter(p -> p.stock() > 0)
-                        .sorted(Comparator.comparing(Producto::tipoProducto).thenComparing(Producto::nombre))
+                        .sorted(Comparator.comparing(Producto::tipoProducto).thenComparing(Producto::nombreCompleto))
                         .toList()),
                 mensaje -> Ui.mostrarError(ventana(), mensaje));
     }
@@ -274,6 +274,11 @@ public class FrmVentas extends BorderPane {
             Ui.mostrarError(ventana(), "Seleccione un producto.");
             return;
         }
+        if (!producto.tienePrecio()) {
+            Ui.mostrarError(ventana(), producto.nombreCompleto() + " no tiene precio definido. "
+                    + "El administrador debe asignarle un precio en Inventario antes de venderlo.");
+            return;
+        }
         int cantidad = Ui.leerEntero(spnCantidad);
         if (cantidad < 1) {
             Ui.mostrarError(ventana(), "Ingrese una cantidad válida.");
@@ -284,7 +289,7 @@ public class FrmVentas extends BorderPane {
         int total = cantidad + (indice >= 0 ? carrito.get(indice).cantidad() : 0);
         if (total > producto.stock()) {
             Ui.mostrarError(ventana(), String.format("Solo hay %d unidades disponibles de %s.",
-                    producto.stock(), producto.nombre()));
+                    producto.stock(), producto.nombreCompleto()));
             return;
         }
 

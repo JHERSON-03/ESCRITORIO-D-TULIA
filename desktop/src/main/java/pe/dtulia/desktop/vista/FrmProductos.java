@@ -19,17 +19,23 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.stage.Window;
 import javafx.util.Duration;
+import pe.dtulia.desktop.modelo.Empleado;
 import pe.dtulia.desktop.modelo.Producto;
 import pe.dtulia.desktop.modelo.TipoProducto;
 import pe.dtulia.desktop.servicio.Servicios;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Function;
@@ -40,20 +46,25 @@ public class FrmProductos extends BorderPane {
     private static final Duration INTERVALO_REFRESCO = Duration.seconds(30);
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final TipoProducto TODOS_LOS_TIPOS = new TipoProducto(0, "Todos los tipos", null);
+    private static final String TODAS_LAS_PRESENTACIONES = "Todas";
 
     private final Servicios servicios;
+    private final Empleado empleado;
     private final ObservableList<Producto> productos = FXCollections.observableArrayList();
     private final FilteredList<Producto> filtrados = new FilteredList<>(productos, p -> true);
     private final TableView<Producto> tabla = new TableView<>();
     private final TextField txtBuscar = new TextField();
     private final ComboBox<TipoProducto> cboTipo = new ComboBox<>();
+    private final ComboBox<String> cboPresentacion = new ComboBox<>();
+    private final CheckBox chkConStock = new CheckBox("Solo con stock");
     private final CheckBox chkStockBajo = new CheckBox("Solo stock bajo");
     private final Label lblResumen = new Label();
     private final Label lblActualizado = new Label("Cargando…");
     private final Timeline refresco;
 
-    public FrmProductos(Servicios servicios) {
+    public FrmProductos(Servicios servicios, Empleado empleado) {
         this.servicios = servicios;
+        this.empleado = empleado;
         getStyleClass().add("formulario");
 
         setTop(crearBarra());
@@ -62,6 +73,8 @@ public class FrmProductos extends BorderPane {
 
         txtBuscar.textProperty().addListener((obs, antes, ahora) -> aplicarFiltro());
         cboTipo.valueProperty().addListener((obs, antes, ahora) -> aplicarFiltro());
+        cboPresentacion.valueProperty().addListener((obs, antes, ahora) -> aplicarFiltro());
+        chkConStock.selectedProperty().addListener((obs, antes, ahora) -> aplicarFiltro());
         chkStockBajo.selectedProperty().addListener((obs, antes, ahora) -> aplicarFiltro());
 
         refresco = new Timeline(new KeyFrame(INTERVALO_REFRESCO, e -> recargar()));
@@ -76,6 +89,7 @@ public class FrmProductos extends BorderPane {
                 lista -> {
                     Producto seleccionado = tabla.getSelectionModel().getSelectedItem();
                     productos.setAll(lista);
+                    actualizarPresentaciones(lista);
                     if (seleccionado != null) {
                         lista.stream()
                                 .filter(p -> p.id() == seleccionado.id())
@@ -102,9 +116,23 @@ public class FrmProductos extends BorderPane {
                 mensaje -> lblActualizado.setText("⚠ " + mensaje));
     }
 
+    /** Presentaciones que existen en el catálogo, en el orden de la base de datos (750 ML, 1 L, …). */
+    private void actualizarPresentaciones(List<Producto> lista) {
+        List<String> presentaciones = lista.stream()
+                .sorted(Comparator.comparingLong(Producto::presentacionId))
+                .map(Producto::presentacion)
+                .distinct()
+                .toList();
+        String actual = cboPresentacion.getValue();
+        cboPresentacion.getItems().setAll(TODAS_LAS_PRESENTACIONES);
+        cboPresentacion.getItems().addAll(presentaciones);
+        cboPresentacion.setValue(actual != null && cboPresentacion.getItems().contains(actual)
+                ? actual : TODAS_LAS_PRESENTACIONES);
+    }
+
     private HBox crearBarra() {
         txtBuscar.setPromptText("Buscar producto…");
-        txtBuscar.setPrefWidth(260);
+        txtBuscar.setPrefWidth(220);
         Button btnActualizar = new Button("Actualizar");
         btnActualizar.setOnAction(e -> recargar());
 
@@ -112,8 +140,8 @@ public class FrmProductos extends BorderPane {
         HBox.setHgrow(espacio, Priority.ALWAYS);
         lblActualizado.getStyleClass().add("estado");
 
-        HBox barra = new HBox(12, txtBuscar, new Label("Tipo"), cboTipo, chkStockBajo, espacio,
-                lblActualizado, btnActualizar);
+        HBox barra = new HBox(12, txtBuscar, new Label("Tipo"), cboTipo, new Label("Presentación"), cboPresentacion,
+                chkConStock, chkStockBajo, espacio, lblActualizado, btnActualizar);
         barra.setAlignment(Pos.CENTER_LEFT);
         barra.setPadding(new Insets(0, 0, 10, 0));
         return barra;
@@ -122,11 +150,13 @@ public class FrmProductos extends BorderPane {
     private TableView<Producto> crearTabla() {
         List<TableColumn<Producto, ?>> columnas = List.of(
                 columna("ID", Producto::id, 60, String::valueOf, true),
-                columna("Producto", Producto::nombre, 320, String::valueOf, false),
-                columna("Tipo", Producto::tipoProducto, 140, String::valueOf, false),
-                columna("Origen", Producto::origen, 130, String::valueOf, false),
-                columna("Precio", Producto::precio, 110, Ui::soles, true),
-                columna("Stock", Producto::stock, 90, String::valueOf, true));
+                columna("Producto", Producto::nombre, 240, String::valueOf, false),
+                columna("Presentación", Producto::presentacion, 110, String::valueOf, false),
+                columna("Tipo", Producto::tipoProducto, 110, String::valueOf, false),
+                columna("Origen", Producto::origen, 110, String::valueOf, false),
+                columna("Precio", Producto::precio, 100, p -> p.signum() > 0 ? Ui.soles(p) : "Sin precio", true),
+                columna("Stock", Producto::stock, 80, String::valueOf, true),
+                columna("En cajas", p -> Ui.cajas(p.stock(), p.unidadesCaja()), 130, String::valueOf, false));
         tabla.getColumns().setAll(columnas);
 
         SortedList<Producto> ordenados = new SortedList<>(filtrados);
@@ -150,6 +180,13 @@ public class FrmProductos extends BorderPane {
                 }
             }
         });
+        if (empleado.esAdministrador()) {
+            tabla.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2) {
+                    editarPrecio();
+                }
+            });
+        }
         return tabla;
     }
 
@@ -162,18 +199,63 @@ public class FrmProductos extends BorderPane {
         HBox.setHgrow(espacio, Priority.ALWAYS);
 
         HBox pie = new HBox(10, lblResumen, espacio, leyendaBajo, leyendaSin);
+        if (empleado.esAdministrador()) {
+            Button btnPrecio = new Button("Editar precio");
+            btnPrecio.disableProperty().bind(tabla.getSelectionModel().selectedItemProperty().isNull());
+            btnPrecio.setOnAction(e -> editarPrecio());
+            pie.getChildren().add(btnPrecio);
+        }
         pie.setAlignment(Pos.CENTER_LEFT);
         pie.setPadding(new Insets(10, 0, 0, 0));
         lblResumen.getStyleClass().add("estado");
         return pie;
     }
 
+    /** Solo ADMINISTRADOR: las presentaciones nuevas no se venden hasta tener precio. */
+    private void editarPrecio() {
+        Producto producto = tabla.getSelectionModel().getSelectedItem();
+        if (producto == null) {
+            return;
+        }
+        TextInputDialog dialogo = new TextInputDialog(producto.tienePrecio() ? producto.precio().toPlainString() : "");
+        dialogo.initOwner(ventana());
+        dialogo.setTitle("Editar precio");
+        dialogo.setHeaderText(producto.nombreCompleto() + "\nPrecio actual: "
+                + (producto.tienePrecio() ? Ui.soles(producto.precio()) : "sin precio"));
+        dialogo.setContentText("Nuevo precio (S/):");
+
+        dialogo.showAndWait()
+                .map(texto -> texto.trim().replace(',', '.'))
+                .filter(texto -> !texto.isEmpty())
+                .ifPresent(texto -> {
+                    BigDecimal precio;
+                    try {
+                        precio = new BigDecimal(texto).setScale(2, RoundingMode.HALF_UP);
+                    } catch (NumberFormatException | ArithmeticException e) {
+                        Ui.mostrarError(ventana(), "Ingrese un precio válido, por ejemplo 25.50");
+                        return;
+                    }
+                    if (precio.signum() <= 0) {
+                        Ui.mostrarError(ventana(), "El precio debe ser mayor a 0.");
+                        return;
+                    }
+                    Ui.alCompletar(servicios.productos().actualizarPrecio(producto.id(), precio),
+                            actualizado -> recargar(),
+                            mensaje -> Ui.mostrarError(ventana(), mensaje));
+                });
+    }
+
     private void aplicarFiltro() {
         String texto = txtBuscar.getText().trim().toLowerCase(Locale.ROOT);
         TipoProducto tipo = cboTipo.getValue();
+        String presentacion = cboPresentacion.getValue();
+        boolean conStock = chkConStock.isSelected();
         boolean soloBajo = chkStockBajo.isSelected();
         filtrados.setPredicate(p ->
                 (tipo == null || tipo == TODOS_LOS_TIPOS || p.tipoProductoId() == tipo.id())
+                        && (presentacion == null || TODAS_LAS_PRESENTACIONES.equals(presentacion)
+                            || presentacion.equals(p.presentacion()))
+                        && (!conStock || p.stock() > 0)
                         && (!soloBajo || p.stockBajo())
                         && (texto.isEmpty() || p.nombre().toLowerCase(Locale.ROOT).contains(texto)));
         actualizarResumen();
@@ -182,9 +264,15 @@ public class FrmProductos extends BorderPane {
     private void actualizarResumen() {
         long bajos = productos.stream().filter(p -> p.stockBajo() && p.stock() > 0).count();
         long agotados = productos.stream().filter(p -> p.stock() == 0).count();
+        long sinPrecio = productos.stream().filter(p -> !p.tienePrecio()).count();
         int unidades = productos.stream().mapToInt(Producto::stock).sum();
-        lblResumen.setText(String.format("%d de %d productos  ·  %d unidades en total  ·  %d con stock bajo  ·  %d sin stock",
-                filtrados.size(), productos.size(), unidades, bajos, agotados));
+        lblResumen.setText(String.format(
+                "%d de %d productos  ·  %d unidades en total  ·  %d con stock bajo  ·  %d sin stock  ·  %d sin precio",
+                filtrados.size(), productos.size(), unidades, bajos, agotados, sinPrecio));
+    }
+
+    private Window ventana() {
+        return getScene() == null ? null : getScene().getWindow();
     }
 
     private static <T> TableColumn<Producto, T> columna(String titulo, Function<Producto, T> valor, double ancho,

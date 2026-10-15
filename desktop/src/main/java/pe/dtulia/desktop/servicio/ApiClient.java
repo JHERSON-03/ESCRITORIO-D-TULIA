@@ -62,6 +62,14 @@ public class ApiClient {
     }
 
     public <T> CompletableFuture<T> post(String ruta, Object cuerpo, Class<T> tipo) {
+        return conCuerpo("POST", ruta, cuerpo, tipo);
+    }
+
+    public <T> CompletableFuture<T> patch(String ruta, Object cuerpo, Class<T> tipo) {
+        return conCuerpo("PATCH", ruta, cuerpo, tipo);
+    }
+
+    private <T> CompletableFuture<T> conCuerpo(String metodo, String ruta, Object cuerpo, Class<T> tipo) {
         String cuerpoJson;
         try {
             cuerpoJson = json.writeValueAsString(cuerpo);
@@ -70,7 +78,7 @@ public class ApiClient {
         }
         HttpRequest peticion = solicitud(ruta)
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(cuerpoJson, StandardCharsets.UTF_8))
+                .method(metodo, HttpRequest.BodyPublishers.ofString(cuerpoJson, StandardCharsets.UTF_8))
                 .build();
         return enviar(peticion, json.constructType(tipo));
     }

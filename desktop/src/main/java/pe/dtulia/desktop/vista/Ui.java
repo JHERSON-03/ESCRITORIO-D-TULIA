@@ -1,11 +1,14 @@
 package pe.dtulia.desktop.vista;
 
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import pe.dtulia.desktop.servicio.ApiException;
@@ -14,6 +17,7 @@ import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Utilidades comunes de la capa de presentación. */
 final class Ui {
@@ -50,6 +54,17 @@ final class Ui {
         return String.format(PERU, "S/ %,.2f", monto == null ? BigDecimal.ZERO : monto);
     }
 
+    /** 30 unidades de 12 por caja → "2 cajas + 6 u."; 6 → "6 u."; 24 → "2 cajas". */
+    static String cajas(int unidades, int porCaja) {
+        if (porCaja <= 1 || unidades < porCaja) {
+            return unidades + " u.";
+        }
+        int cajas = unidades / porCaja;
+        int sueltas = unidades % porCaja;
+        String texto = cajas + (cajas == 1 ? " caja" : " cajas");
+        return sueltas == 0 ? texto : texto + " + " + sueltas + " u.";
+    }
+
     /** Recuadro blanco con título usado por los formularios. */
     static VBox seccion(String titulo, Node... contenido) {
         Label etiqueta = new Label(titulo);
@@ -58,6 +73,37 @@ final class Ui {
         caja.getChildren().addAll(contenido);
         caja.getStyleClass().add("seccion");
         return caja;
+    }
+
+    /** Columna de texto no ordenable. */
+    static <S> TableColumn<S, String> columna(String titulo, Function<S, String> valor, double ancho, boolean numerica) {
+        return columna(titulo, valor, ancho, numerica, fila -> null);
+    }
+
+    /** claseCss: clase de estilo de la celda según la fila ("texto-alerta", "texto-ok" o null). */
+    static <S> TableColumn<S, String> columna(String titulo, Function<S, String> valor, double ancho, boolean numerica,
+                                              Function<S, String> claseCss) {
+        TableColumn<S, String> columna = new TableColumn<>(titulo);
+        columna.setCellValueFactory(d -> new ReadOnlyObjectWrapper<>(valor.apply(d.getValue())));
+        columna.setCellFactory(c -> new TableCell<>() {
+            @Override
+            protected void updateItem(String texto, boolean vacio) {
+                super.updateItem(texto, vacio);
+                setText(vacio ? null : texto);
+                getStyleClass().removeAll("texto-alerta", "texto-ok");
+                S fila = vacio || getTableRow() == null ? null : getTableRow().getItem();
+                String clase = fila == null ? null : claseCss.apply(fila);
+                if (clase != null) {
+                    getStyleClass().add(clase);
+                }
+            }
+        });
+        columna.setPrefWidth(ancho);
+        columna.setSortable(false);
+        if (numerica) {
+            columna.getStyleClass().add("numero");
+        }
+        return columna;
     }
 
     /**

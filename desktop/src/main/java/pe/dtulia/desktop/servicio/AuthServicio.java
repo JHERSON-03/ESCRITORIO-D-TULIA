@@ -14,8 +14,8 @@ public class AuthServicio {
     }
 
     /** POST /auth/login. Si es exitoso, el token queda guardado para las siguientes peticiones. */
-    public CompletableFuture<Sesion> iniciarSesion(String documento, String password, long sedeId) {
-        return api.post("/auth/login", new Credenciales(documento, password, sedeId), Sesion.class)
+    public CompletableFuture<Sesion> iniciarSesion(String documento, String password) {
+        return api.post("/auth/login", new Credenciales(documento, password), Sesion.class)
                 .thenApply(sesion -> {
                     api.setToken(sesion.accessToken());
                     return sesion;

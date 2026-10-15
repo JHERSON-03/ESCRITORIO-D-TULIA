@@ -1,5 +1,5 @@
 from app.datos.catalogo_repositorio import CatalogoRepositorio
-from app.modelos.catalogo import MetodoPagoOut, SedeOut, TipoComprobanteOut, TipoProductoOut
+from app.modelos.catalogo import MetodoPagoOut, PresentacionOut, SedeOut, TipoComprobanteOut, TipoProductoOut
 from app.negocio.reglas import CANALES_VENTA, requiere_ruc, tasa_igv
 
 
@@ -9,6 +9,9 @@ class CatalogoServicio:
 
     def sedes(self) -> list[SedeOut]:
         return [SedeOut.model_validate(f) for f in self._repo.sedes()]
+
+    def presentaciones(self) -> list[PresentacionOut]:
+        return [PresentacionOut.model_validate(f) for f in self._repo.presentaciones()]
 
     def tipos_producto(self) -> list[TipoProductoOut]:
         return [TipoProductoOut.model_validate(f) for f in self._repo.tipos_producto()]

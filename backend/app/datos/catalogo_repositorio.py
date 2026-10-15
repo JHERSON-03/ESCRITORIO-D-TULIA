@@ -8,22 +8,33 @@ class CatalogoRepositorio:
         with obtener_conexion() as conn:
             return conn.execute(
                 """
-                select sede_id as id, sede_nombre as nombre, sede_direccion as direccion
+                select sede_id as id, sede_nombre as nombre, sede_direccion as direccion, sede_es_almacen as es_almacen
                   from public.sedes
-                 order by sede_id
+                 order by sede_es_almacen desc, sede_nombre
                 """
             ).fetchall()
 
-    def obtener_sede(self, sede_id: int) -> dict[str, Any] | None:
+    def obtener_almacen(self) -> dict[str, Any] | None:
+        """Sede desde la que sale toda la mercadería (Trujillo)."""
         with obtener_conexion() as conn:
             return conn.execute(
                 """
-                select sede_id as id, sede_nombre as nombre, sede_direccion as direccion
+                select sede_id as id, sede_nombre as nombre, sede_direccion as direccion, sede_es_almacen as es_almacen
                   from public.sedes
-                 where sede_id = %s
-                """,
-                (sede_id,),
+                 where sede_es_almacen
+                """
             ).fetchone()
+
+    def presentaciones(self) -> list[dict[str, Any]]:
+        with obtener_conexion() as conn:
+            return conn.execute(
+                """
+                select presentacion_id as id, presentacion_nombre as nombre,
+                       presentacion_unidades_caja as unidades_caja
+                  from public.presentaciones
+                 order by presentacion_orden, presentacion_nombre
+                """
+            ).fetchall()
 
     def tipos_producto(self) -> list[dict[str, Any]]:
         with obtener_conexion() as conn:

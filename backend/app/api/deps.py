@@ -13,6 +13,7 @@ from app.datos.empleado_repositorio import EmpleadoRepositorio
 from app.datos.inventario_repositorio import InventarioRepositorio
 from app.datos.producto_repositorio import ProductoRepositorio
 from app.datos.venta_repositorio import VentaRepositorio
+from app.datos.viaje_repositorio import ViajeRepositorio
 from app.modelos.auth import EmpleadoToken
 from app.negocio.auth_servicio import AuthServicio
 from app.negocio.catalogo_servicio import CatalogoServicio
@@ -20,6 +21,7 @@ from app.negocio.cliente_servicio import ClienteServicio
 from app.negocio.inventario_servicio import InventarioServicio
 from app.negocio.producto_servicio import ProductoServicio
 from app.negocio.venta_servicio import VentaServicio
+from app.negocio.viaje_servicio import ViajeServicio
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -72,3 +74,7 @@ def servicio_clientes() -> ClienteServicio:
 
 def servicio_inventario() -> InventarioServicio:
     return InventarioServicio(InventarioRepositorio())
+
+
+def servicio_viajes() -> ViajeServicio:
+    return ViajeServicio(ViajeRepositorio())

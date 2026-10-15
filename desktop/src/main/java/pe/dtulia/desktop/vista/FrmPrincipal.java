@@ -21,7 +21,7 @@ public class FrmPrincipal extends Stage {
     public FrmPrincipal(Sesion sesion, Servicios servicios, Runnable alCerrarSesion) {
         Empleado empleado = sesion.empleado();
 
-        FrmProductos frmProductos = new FrmProductos(servicios);
+        FrmProductos frmProductos = new FrmProductos(servicios, empleado);
         FrmVentas frmVentas = new FrmVentas(servicios, frmProductos::recargar);
 
         Tab tabInventario = new Tab("Inventario", frmProductos);
@@ -42,12 +42,21 @@ public class FrmPrincipal extends Stage {
                 }
             });
             pestanas.getTabs().add(tabMovimientos);
+
+            FrmViajes frmViajes = new FrmViajes(servicios, empleado, frmProductos::recargar);
+            Tab tabViajes = new Tab("Viajes", frmViajes);
+            tabViajes.setOnSelectionChanged(e -> {
+                if (tabViajes.isSelected()) {
+                    frmViajes.recargar();
+                }
+            });
+            pestanas.getTabs().add(tabViajes);
         }
         pestanas.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 
         Label marca = new Label("D'Tulia");
         marca.getStyleClass().add("cabecera-marca");
-        Label usuario = new Label(empleado.nombreCompleto() + "  ·  " + empleado.rol() + "  ·  Sede " + empleado.sede());
+        Label usuario = new Label(empleado.nombreCompleto() + "  ·  " + empleado.rol() + "  ·  Almacén " + empleado.sede());
         Region espacio = new Region();
         HBox.setHgrow(espacio, Priority.ALWAYS);
         Button btnSalir = new Button("Cerrar sesión");
@@ -66,7 +75,7 @@ public class FrmPrincipal extends Stage {
         Scene escena = new Scene(raiz, 1100, 680);
         Ui.aplicarEstilos(escena);
         setScene(escena);
-        setTitle("D'Tulia · " + empleado.sede());
+        setTitle("D'Tulia · Almacén " + empleado.sede());
         setMinWidth(900);
         setMinHeight(560);
         setOnHidden(e -> frmProductos.detener());

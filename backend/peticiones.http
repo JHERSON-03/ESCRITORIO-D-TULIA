@@ -1,15 +1,12 @@
 ### Pruebas rápidas de la API con la extensión REST Client de VS Code
 @api = http://127.0.0.1:8000
 
-### 0. Sedes (no requiere sesión)
-GET {{api}}/catalogos/sedes
-
-### 1. Login (el token se guarda automáticamente en @token)
+### 1. Login (el token se guarda automáticamente en @token). La sede es siempre el almacén
 # @name login
 POST {{api}}/auth/login
 Content-Type: application/json
 
-{ "documento": "00000001", "password": "DTulia2026!", "sede_id": 1 }
+{ "documento": "00000001", "password": "DTulia2026!" }
 
 ###
 @token = {{login.response.body.$.access_token}}
@@ -42,3 +39,40 @@ Content-Type: application/json
 ### 5. Kardex de un producto
 GET {{api}}/inventario/kardex/8
 Authorization: Bearer {{token}}
+
+### 6. Ciudades (el almacén primero) y presentaciones
+GET {{api}}/catalogos/sedes
+Authorization: Bearer {{token}}
+
+###
+GET {{api}}/catalogos/presentaciones
+Authorization: Bearer {{token}}
+
+### 7. Nuevo viaje: carga inicial a HUAMACHUCO (cantidades en unidades: 2 cajas de 12 = 24)
+POST {{api}}/viajes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "sede_id": 2, "referencia": "Camioneta", "items": [ { "producto_id": 1, "cantidad": 24 } ] }
+
+### 8. Viajes abiertos
+GET {{api}}/viajes?estado=ABIERTO
+Authorization: Bearer {{token}}
+
+### 9. El jefe pide 6 unidades más (envío al viaje 1)
+POST {{api}}/viajes/1/envios
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "sede_id": 2, "referencia": "Agencia", "items": [ { "producto_id": 1, "cantidad": 6 } ] }
+
+### 10. Liquidar: vendió 25, regresaron 4 y se rompió 1 (24 + 6 = 30)
+POST {{api}}/viajes/1/liquidar
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "ventas": [ { "producto_id": 1, "sede_id": 2, "cantidad": 25 } ],
+  "retornos": [ { "producto_id": 1, "devuelto": 4, "merma": 1, "motivo": "Rotura" } ],
+  "observacion": null
+}

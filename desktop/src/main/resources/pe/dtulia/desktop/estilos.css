@@ -111,3 +111,23 @@
     -fx-background-radius: 4;
     -fx-padding: 2 8;
 }
+
+/* ---- Viajes ---- */
+.texto-alerta {
+    -fx-text-fill: #b42318;
+    -fx-font-weight: bold;
+}
+
+.texto-ok {
+    -fx-text-fill: #1a7f37;
+    -fx-font-weight: bold;
+}
+
+.table-row-cell.anulado {
+    -fx-opacity: 0.5;
+}
+
+.encabezado-grilla {
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-suave;
+}

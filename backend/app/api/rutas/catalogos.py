@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.api.deps import empleado_actual, servicio_catalogos
-from app.modelos.catalogo import MetodoPagoOut, SedeOut, TipoComprobanteOut, TipoProductoOut
+from app.modelos.catalogo import MetodoPagoOut, PresentacionOut, SedeOut, TipoComprobanteOut, TipoProductoOut
 from app.negocio.catalogo_servicio import CatalogoServicio
 
 router = APIRouter(prefix="/catalogos", tags=["Catálogos"])
@@ -9,10 +9,16 @@ router = APIRouter(prefix="/catalogos", tags=["Catálogos"])
 autenticado = [Depends(empleado_actual)]
 
 
-@router.get("/sedes", response_model=list[SedeOut])
+@router.get("/sedes", response_model=list[SedeOut], dependencies=autenticado)
 def sedes(servicio: CatalogoServicio = Depends(servicio_catalogos)) -> list[SedeOut]:
-    """Público: la pantalla de login lo usa para elegir la sede de trabajo."""
+    """El almacén (Trujillo) primero; las demás son ciudades de destino de los viajes."""
     return servicio.sedes()
+
+
+@router.get("/presentaciones", response_model=list[PresentacionOut], dependencies=autenticado)
+def presentaciones(servicio: CatalogoServicio = Depends(servicio_catalogos)) -> list[PresentacionOut]:
+    """Tamaños de botella con sus unidades por caja."""
+    return servicio.presentaciones()
 
 
 @router.get("/tipos-producto", response_model=list[TipoProductoOut], dependencies=autenticado)

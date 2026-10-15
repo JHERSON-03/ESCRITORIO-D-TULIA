@@ -18,7 +18,7 @@ public class CatalogoServicio {
         this.api = api;
     }
 
-    /** No requiere sesión: se usa en la pantalla de login. */
+    /** El almacén primero; las demás son las ciudades de destino de los viajes. */
     public CompletableFuture<List<Sede>> sedes() {
         return api.get("/catalogos/sedes", new TypeReference<List<Sede>>() {
         });

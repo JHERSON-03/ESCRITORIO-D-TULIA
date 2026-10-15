@@ -4,7 +4,6 @@ import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
@@ -13,37 +12,31 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import pe.dtulia.desktop.config.Configuracion;
-import pe.dtulia.desktop.modelo.Sede;
 import pe.dtulia.desktop.modelo.Sesion;
 import pe.dtulia.desktop.servicio.AuthServicio;
-import pe.dtulia.desktop.servicio.CatalogoServicio;
 
 import java.util.function.Consumer;
 
-/** Autenticación del personal (documento + contraseña) y elección de la sede de trabajo. */
+/** Autenticación del personal (documento + contraseña). Todos trabajan desde el almacén de Trujillo. */
 public class FrmLogin extends Stage {
 
     private final AuthServicio authServicio;
-    private final CatalogoServicio catalogoServicio;
     private final Consumer<Sesion> alIngresar;
 
     private final TextField txtDocumento = new TextField();
     private final PasswordField txtPassword = new PasswordField();
-    private final ComboBox<Sede> cboSede = new ComboBox<>();
     private final Button btnIngresar = new Button("Ingresar");
     private final Label lblMensaje = new Label();
 
-    public FrmLogin(AuthServicio authServicio, CatalogoServicio catalogoServicio, Consumer<Sesion> alIngresar) {
+    public FrmLogin(AuthServicio authServicio, Consumer<Sesion> alIngresar) {
         this.authServicio = authServicio;
-        this.catalogoServicio = catalogoServicio;
         this.alIngresar = alIngresar;
 
-        Scene escena = new Scene(construir(), 380, 500);
+        Scene escena = new Scene(construir(), 380, 440);
         Ui.aplicarEstilos(escena);
         setScene(escena);
         setTitle("D'Tulia · Iniciar sesión");
         setResizable(false);
-        cargarSedes();
     }
 
     private Parent construir() {
@@ -54,8 +47,6 @@ public class FrmLogin extends Stage {
 
         txtDocumento.setPromptText("DNI del empleado");
         txtPassword.setPromptText("Contraseña");
-        cboSede.setPromptText("Cargando sedes…");
-        cboSede.setMaxWidth(Double.MAX_VALUE);
 
         btnIngresar.getStyleClass().add("boton-primario");
         btnIngresar.setDefaultButton(true);
@@ -74,44 +65,22 @@ public class FrmLogin extends Stage {
                 marca, subtitulo, new Region(),
                 new Label("Documento"), txtDocumento,
                 new Label("Contraseña"), txtPassword,
-                new Label("Sede"), cboSede,
                 btnIngresar, lblMensaje, espacio, servidor);
         caja.setPadding(new Insets(32, 32, 20, 32));
         caja.getStyleClass().add("login");
         return caja;
     }
 
-    private void cargarSedes() {
-        Ui.alCompletar(catalogoServicio.sedes(),
-                sedes -> {
-                    cboSede.getItems().setAll(sedes);
-                    cboSede.setPromptText("Seleccione su sede");
-                    if (sedes.size() == 1) {
-                        cboSede.getSelectionModel().selectFirst();
-                    }
-                },
-                mensaje -> {
-                    cboSede.setPromptText("Sin conexión");
-                    lblMensaje.setText(mensaje);
-                });
-    }
-
     private void ingresar() {
-        if (cboSede.getItems().isEmpty()) {
-            lblMensaje.setText("");
-            cargarSedes(); // reintento si la API no respondía al abrir
-            return;
-        }
         String documento = txtDocumento.getText().trim();
-        Sede sede = cboSede.getValue();
-        if (documento.isEmpty() || txtPassword.getText().isEmpty() || sede == null) {
-            lblMensaje.setText("Ingrese su documento, contraseña y sede.");
+        if (documento.isEmpty() || txtPassword.getText().isEmpty()) {
+            lblMensaje.setText("Ingrese su documento y contraseña.");
             return;
         }
 
         bloquear(true);
         lblMensaje.setText("");
-        Ui.alCompletar(authServicio.iniciarSesion(documento, txtPassword.getText(), sede.id()),
+        Ui.alCompletar(authServicio.iniciarSesion(documento, txtPassword.getText()),
                 sesion -> {
                     alIngresar.accept(sesion); // se abre la ventana principal antes de cerrar esta
                     close();
@@ -127,7 +96,6 @@ public class FrmLogin extends Stage {
     private void bloquear(boolean ocupado) {
         txtDocumento.setDisable(ocupado);
         txtPassword.setDisable(ocupado);
-        cboSede.setDisable(ocupado);
         btnIngresar.setDisable(ocupado);
         btnIngresar.setText(ocupado ? "Validando…" : "Ingresar");
     }

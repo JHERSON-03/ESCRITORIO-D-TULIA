@@ -5,7 +5,7 @@ Arquitectura en **N-Capas**:
 
 ```
 ┌────────────────────────────────────┐
-│ PRESENTACIÓN · Java 17 + JavaFX    │  desktop/   FrmLogin · FrmProductos · FrmVentas · FrmMovimientos
+│ PRESENTACIÓN · Java 17 + JavaFX    │  desktop/   FrmLogin · FrmProductos · FrmVentas · FrmMovimientos · FrmViajes
 │   vista → servicio → modelo        │             HttpClient (JDK) + Jackson
 └───────────────┬────────────────────┘
                 │ HTTP / JSON + JWT
@@ -29,8 +29,9 @@ Cada capa solo conoce a la inmediatamente inferior: las vistas no hablan con la 
 WEB D'TULIA/
 ├── .vscode/                     settings.json · extensions.json (extensiones recomendadas)
 ├── database/                    CAPA DE DATOS (sobre el modelo existente en Supabase)
-│   ├── 01_complementos.sql      login, índices, funciones para la API y registro de ventas
-│   └── 02_datos_iniciales.sql   cargos, métodos de pago, comprobantes, cliente genérico, admin
+│   ├── 01_complementos.sql      login, índices, presentaciones, funciones para la API y registro de ventas
+│   ├── 02_datos_iniciales.sql   cargos, métodos de pago, comprobantes, cliente genérico, admin, almacén
+│   └── 03_viajes.sql            mercadería que lleva el jefe: envíos, liquidación y diferencias
 ├── backend/                     CAPA DE NEGOCIO + API (Python)
 │   ├── .env.example
 │   ├── requirements.txt
@@ -51,7 +52,7 @@ WEB D'TULIA/
         │   ├── config/          URL de la API
         │   ├── modelo/          records (Producto, VentaSolicitud, …)
         │   ├── servicio/        ApiClient + servicios HTTP
-        │   └── vista/           FrmLogin · FrmPrincipal · FrmProductos · FrmVentas · FrmMovimientos
+        │   └── vista/           FrmLogin · FrmPrincipal · FrmProductos · FrmVentas · FrmMovimientos · FrmViajes
         └── resources/pe/dtulia/desktop/estilos.css
 ```
 
@@ -62,9 +63,16 @@ El proyecto trabaja sobre **tu modelo existente** en el esquema `public` (`sedes
 En **SQL Editor** ejecuta, en orden:
 
 1. `01_complementos.sql`: agrega sin modificar nada existente
-2. `02_datos_iniciales.sql`: completa los catálogos vacíos (no toca sedes, tipos ni productos)
+2. `02_datos_iniciales.sql`: completa los catálogos vacíos, marca TRUJILLO como almacén y crea las presentaciones de cada producto
+3. `03_viajes.sql`: control de la mercadería que lleva el jefe
 
-Ambos son idempotentes (se pueden ejecutar más de una vez).
+Los tres son idempotentes (se pueden ejecutar más de una vez).
+
+### Modelo del negocio
+
+- **Un solo almacén (Trujillo)**: todo sale de ahí, también lo que se vende en las tiendas. La sede marcada con `sede_es_almacen` es donde se registran las ventas; las demás sedes son **ciudades de destino**.
+- **Presentaciones**: cada tamaño es un producto propio con su precio y su stock (*VINO ROSÉ · 750 ML* y *VINO ROSÉ · 4 L*). El stock se guarda en unidades; las cajas solo sirven para ingresar y mostrar cantidades.
+- **Viajes del jefe**: lleva mercadería, la vende en otras ciudades con comprobantes en papel y no tiene fecha fija de regreso. El sistema controla productos (no dinero): llevó − vendió − regresó − merma = diferencia.
 
 ### Qué agrega `01_complementos.sql`
 
@@ -73,12 +81,31 @@ Ambos son idempotentes (se pueden ejecutar más de una vez).
 | `empleados.empleado_password_hash` | Contraseña bcrypt (pgcrypto) para el login de la app |
 | Índices `idx_*` | Índices en todas las llaves foráneas + unicidad `serie-número` del comprobante |
 | `fn_empleado_login` / `fn_empleado_registrar` | Login por documento y alta/actualización de empleados con contraseña |
-| `fn_productos_listar` | Catálogo con tipo, origen, stock y marca de stock bajo |
-| `fn_producto_crear / actualizar / eliminar` | CRUD de productos (el stock solo cambia por movimientos) |
+| `presentaciones` | 750 ML (12 por caja), 1 L (12), 2 L (9), 4 L (4) y CHATA (24). `productos.producto_presentacion_id`; los productos que ya existían quedaron en 750 ML |
+| `sedes.sede_es_almacen` | Marca la sede desde la que sale toda la mercadería (una sola) |
+| `fn_productos_listar` | Catálogo con tipo, origen, presentación, unidades por caja, stock y marca de stock bajo |
+| `fn_producto_crear / actualizar / eliminar` | CRUD de productos con presentación (el stock solo cambia por movimientos) |
 | `fn_cliente_buscar / registrar` | Clientes por DNI/RUC |
-| `fn_registrar_venta` | Pedido + detalle + comprobante en **una sola transacción**: valida stock (bloqueando productos en orden), toma el correlativo, exige RUC en facturas y usa el precio de la BD. Al insertar el comprobante, **tu trigger** descuenta el stock y registra `SALIDA_VENTA` |
+| `fn_registrar_venta` | Pedido + detalle + comprobante en **una sola transacción**: valida stock (bloqueando productos en orden), rechaza productos con precio 0, toma el correlativo, exige RUC en facturas y usa el precio de la BD. Al insertar el comprobante, **tu trigger** descuenta el stock y registra `SALIDA_VENTA` |
 
 Si falta stock o algo falla, PostgreSQL **revierte todo** (pedido, correlativo y stock).
+
+Las presentaciones creadas por `02_datos_iniciales.sql` nacen con **precio 0 y stock 0**: no se pueden vender hasta que el administrador les ponga precio (Inventario → *Editar precio*).
+
+### Qué agrega `03_viajes.sql`
+
+| Objeto | Qué hace |
+|---|---|
+| `viajes` | Fecha de salida, estado `ABIERTO` / `LIQUIDADO`, liquidación y observación. Solo puede haber **un viaje abierto** |
+| `viaje_envios` · `viaje_envio_detalle` | Envío 1 = carga inicial; 2, 3… = lo que el jefe pide durante el viaje. Cada envío va a una ciudad |
+| `viaje_ventas` · `viaje_retornos` | Lo vendido por ciudad, lo que regresó y la merma (con motivo) |
+| `fn_viaje_abrir` · `fn_viaje_enviar` | Validan stock y descuentan del almacén con `SALIDA_VIAJE` |
+| `fn_viaje_anular_envio` | Devuelve al almacén un envío registrado por error (`RETORNO_VIAJE`), solo con el viaje abierto |
+| `fn_viaje_liquidar` | Guarda ventas y retornos, devuelve al almacén lo que regresó (`RETORNO_VIAJE`) y cierra el viaje. Si la diferencia no es 0, exige observación |
+| `fn_viajes_listar` · `fn_viaje_productos` · `fn_viaje_envios` · `fn_viaje_ventas` | Consultas para las pantallas |
+| `fn_anular_movimiento` | Tu función, con una validación más: los movimientos de un viaje no se anulan desde el Kardex |
+
+Las ventas del viaje **no** pasan por comprobantes: esa mercadería ya salió del almacén y el trigger de ventas la descontaría dos veces.
 
 ### Crear empleados
 
@@ -121,16 +148,19 @@ powershell -ExecutionPolicy Bypass -File .\scripts\api_automatica.ps1 desinstala
 
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| GET | `/catalogos/sedes` | — (público) | Sedes para la pantalla de login |
-| POST | `/auth/login` | — | `{documento, password, sede_id}` → JWT y datos del empleado |
+| POST | `/auth/login` | — | `{documento, password}` → JWT y datos del empleado (la sede es siempre el almacén) |
 | GET | `/productos` | cualquiera | Catálogo con stock actual (`?buscar=`, `?tipo_producto_id=`) |
 | GET | `/productos/{id}` | cualquiera | Detalle de un producto |
 | POST · PATCH · DELETE | `/productos[/{id}]` | ADMINISTRADOR | CRUD de productos |
-| POST | `/comprobantes` | cualquiera | Registra la venta en la sede de la sesión (boleta, factura o nota de venta) |
+| POST | `/comprobantes` | cualquiera | Registra la venta en el almacén (boleta, factura o nota de venta) |
 | POST | `/inventario/movimientos` | ADMINISTRADOR, ALMACENERO | `ENTRADA` (cantidad), `MERMA` (cantidad + motivo) o `AJUSTE` (stock_real) |
 | POST | `/inventario/movimientos/{id}/anular` | ADMINISTRADOR | Revierte una entrada, merma o ajuste |
 | GET | `/inventario/kardex/{producto_id}` | cualquiera | Movimientos del producto (más reciente primero) |
-| GET | `/catalogos/tipos-producto` · `/tipos-comprobante` · `/metodos-pago` · `/canales-venta` | cualquiera | Combos de los formularios |
+| GET | `/viajes?estado=` · `/viajes/{id}` | ADMINISTRADOR, ALMACENERO | Viajes con totales / detalle (productos, envíos y ventas por ciudad) |
+| POST | `/viajes` · `/viajes/{id}/envios` | ADMINISTRADOR, ALMACENERO | Carga inicial / envío durante el viaje: `{sede_id, referencia, items: [{producto_id, cantidad}]}` |
+| POST | `/viajes/{id}/liquidar` | ADMINISTRADOR, ALMACENERO | `{ventas: [{producto_id, sede_id, cantidad}], retornos: [{producto_id, devuelto, merma, motivo}], observacion}` |
+| POST | `/viajes/envios/{envio_id}/anular` | ADMINISTRADOR | Devuelve al almacén un envío registrado por error |
+| GET | `/catalogos/sedes` · `/presentaciones` · `/tipos-producto` · `/tipos-comprobante` · `/metodos-pago` · `/canales-venta` | cualquiera | Combos de los formularios |
 | GET · POST | `/clientes/{dni_ruc}` · `/clientes` | cualquiera | Buscar / registrar cliente |
 
 Errores de la BD → HTTP: stock insuficiente **409**, datos inválidos o reglas de tus funciones (`RAISE EXCEPTION`) **422**, no encontrado **404**.
@@ -158,10 +188,11 @@ mvn javafx:run
 
 Por defecto se conecta a `http://127.0.0.1:8000`. Para otra URL: `$env:DTULIA_API_URL = "http://192.168.1.10:8000"` antes de `mvn javafx:run` (o `-Ddtulia.api.url=...` al ejecutar el JAR con `java`).
 
-- **FrmLogin**: documento, contraseña y **sede** de trabajo (lista desde la tabla `sedes`).
-- **FrmProductos**: grilla de inventario (`GET /productos`) con búsqueda, filtro por **tipo de producto**, filtro de stock bajo, colores de alerta y refresco automático cada 30 s.
+- **FrmLogin**: documento y contraseña. Todos trabajan desde el almacén de Trujillo.
+- **FrmProductos**: grilla de inventario (`GET /productos`) con presentación y stock en cajas, búsqueda, filtros por **tipo**, **presentación**, con stock y stock bajo, colores de alerta y refresco automático cada 30 s. El administrador edita precios (botón *Editar precio* o doble clic).
 - **FrmVentas**: comprobante, método de pago, **canal**, cliente (busca o registra por DNI/RUC), carrito y envío a `POST /comprobantes`.
-- **FrmMovimientos** (solo ADMINISTRADOR y ALMACENERO): entradas, mermas y ajustes de stock con el Kardex del producto; el administrador puede anular movimientos.
+- **FrmMovimientos** (solo ADMINISTRADOR y ALMACENERO): entradas (en **cajas + unidades**), mermas y ajustes de stock con el Kardex del producto filtrable por tipo de movimiento; el administrador puede anular movimientos.
+- **FrmViajes** (solo ADMINISTRADOR y ALMACENERO): *Nuevo viaje* (carga inicial), *Enviar al viaje* (lo que el jefe pide, en cajas o unidades), *Imprimir hoja* (hoja de carga con columnas en blanco para que el jefe anote lo vendido en cada ciudad; si el viaje ya se liquidó imprime los valores) y *Liquidar viaje* (vendido por ciudad, lo que regresó y la merma, con la diferencia calculada mientras se escribe). El administrador puede anular un envío mientras el viaje está abierto.
 
 Se eligió **JavaFX** sobre Swing porque ofrece `TableView` con ordenamiento y filtrado, estilos CSS y un modelo de hilos claro (`Platform.runLater`) para peticiones asíncronas. Las llamadas HTTP usan `java.net.http.HttpClient` del JDK y **Jackson** convierte JSON (`snake_case`) ⇄ records Java.
 

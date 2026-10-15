@@ -11,6 +11,7 @@ class ProductoCrear(BaseModel):
     tipo_producto_id: int = Field(gt=0)
     nombre: str = Field(min_length=2, max_length=150)
     precio: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    presentacion_id: int = Field(gt=0, description="750 ML, 1 L, 2 L, 4 L o CHATA")
 
 
 class ProductoActualizar(BaseModel):
@@ -21,6 +22,7 @@ class ProductoActualizar(BaseModel):
     tipo_producto_id: int | None = Field(default=None, gt=0)
     nombre: str | None = Field(default=None, min_length=2, max_length=150)
     precio: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
+    presentacion_id: int | None = Field(default=None, gt=0)
 
 
 class ProductoOut(BaseModel):
@@ -31,4 +33,7 @@ class ProductoOut(BaseModel):
     tipo_producto_id: int
     tipo_producto: str
     origen: str | None
+    presentacion_id: int
+    presentacion: str
+    unidades_caja: int
     stock_bajo: bool
