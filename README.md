@@ -35,6 +35,7 @@ WEB D'TULIA/
 │   ├── .env.example
 │   ├── requirements.txt
 │   ├── peticiones.http          pruebas rápidas con REST Client
+│   ├── scripts/                 API en segundo plano con arranque automático (Windows)
 │   └── app/
 │       ├── main.py              arranque FastAPI
 │       ├── core/                config (.env), pool de conexiones, JWT, manejo de errores
@@ -98,6 +99,22 @@ pip install -r requirements.txt
 copy .env.example .env      # completa DATABASE_URL y JWT_SECRETO (STOCK_MINIMO opcional, por defecto 5)
 uvicorn app.main:app --reload
 ```
+
+### API siempre activa (arranque automático en Windows)
+
+Para no tener que abrir `uvicorn` cada vez, la API puede correr en segundo plano: arranca sola al iniciar sesión en Windows, no abre ventanas y, si se cae, se reinicia en 5 segundos. No requiere permisos de administrador.
+
+```powershell
+cd backend
+powershell -ExecutionPolicy Bypass -File .\scripts\api_automatica.ps1 instalar      # una sola vez
+powershell -ExecutionPolicy Bypass -File .\scripts\api_automatica.ps1 estado
+powershell -ExecutionPolicy Bypass -File .\scripts\api_automatica.ps1 reiniciar     # después de cambiar código Python
+powershell -ExecutionPolicy Bypass -File .\scripts\api_automatica.ps1 detener
+powershell -ExecutionPolicy Bypass -File .\scripts\api_automatica.ps1 desinstalar
+```
+
+- Registro de la API: `backend/logs/api.log`.
+- Si abres un `uvicorn --reload` a mano para desarrollar, el servicio espera y retoma el puerto 8000 en un máximo de 30 s cuando lo cierres.
 
 - `DATABASE_URL`: Supabase → **Project Settings → Database → Connection string → URI** (Session pooler).
 - Documentación interactiva: <http://127.0.0.1:8000/docs>

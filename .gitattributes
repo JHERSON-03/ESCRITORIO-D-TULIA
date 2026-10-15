@@ -1,0 +1,5 @@
+# Los scripts de Windows necesitan saltos de línea CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.vbs text eol=crlf
+*.ps1 text eol=crlf
