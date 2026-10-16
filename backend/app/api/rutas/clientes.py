@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, Path, status
 
-from app.api.deps import empleado_actual, servicio_clientes
+from app.api.deps import requerir_roles, servicio_clientes
 from app.modelos.cliente import ClienteCrear, ClienteOut
 from app.negocio.cliente_servicio import ClienteServicio
+from app.negocio.reglas import ROL_ADMINISTRADOR
 
-router = APIRouter(prefix="/clientes", tags=["Clientes"], dependencies=[Depends(empleado_actual)])
+# Los clientes solo se usan al emitir comprobantes
+router = APIRouter(prefix="/clientes", tags=["Clientes"], dependencies=[Depends(requerir_roles(ROL_ADMINISTRADOR))])
 
 
 @router.get("/{dni_ruc}", response_model=ClienteOut)

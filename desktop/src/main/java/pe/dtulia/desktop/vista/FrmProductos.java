@@ -149,14 +149,13 @@ public class FrmProductos extends BorderPane {
 
     private TableView<Producto> crearTabla() {
         List<TableColumn<Producto, ?>> columnas = List.of(
-                columna("ID", Producto::id, 60, String::valueOf, true),
                 columna("Producto", Producto::nombre, 240, String::valueOf, false),
                 columna("Presentación", Producto::presentacion, 110, String::valueOf, false),
                 columna("Tipo", Producto::tipoProducto, 110, String::valueOf, false),
                 columna("Origen", Producto::origen, 110, String::valueOf, false),
                 columna("Precio", Producto::precio, 100, p -> p.signum() > 0 ? Ui.soles(p) : "Sin precio", true),
                 columna("Stock", Producto::stock, 80, String::valueOf, true),
-                columna("En cajas", p -> Ui.cajas(p.stock(), p.unidadesCaja()), 130, String::valueOf, false));
+                columna("En cajas", p -> Ui.cajas(p.stock(), p.unidadesCaja()), 130, String::valueOf, true));
         tabla.getColumns().setAll(columnas);
 
         SortedList<Producto> ordenados = new SortedList<>(filtrados);

@@ -12,12 +12,19 @@
 
 set search_path = public, extensions;
 
--- Cargos (los roles de la aplicación se basan en estos nombres)
+-- Cargos (los roles de la aplicación se basan en estos nombres).
+-- ADMINISTRADOR: las administradoras del almacén y de la fábrica, con acceso a todo.
+-- ALMACENERO: saca las cajas; en el sistema solo puede consultar inventario y Kardex.
 insert into cargo_empleados (cargo_nombre)
 select v.nombre
-  from (values (1, 'ADMINISTRADOR'), (2, 'VENDEDOR'), (3, 'ALMACENERO')) as v (orden, nombre)
+  from (values (1, 'ADMINISTRADOR'), (2, 'ALMACENERO')) as v (orden, nombre)
  where not exists (select 1 from cargo_empleados c where upper(c.cargo_nombre) = v.nombre)
  order by v.orden;
+
+-- VENDEDOR ya no existe: las boletas las emite la administradora del almacén
+delete from cargo_empleados c
+ where upper(c.cargo_nombre) = 'VENDEDOR'
+   and not exists (select 1 from empleados e where e.empleado_cargo_id = c.cargo_id);
 
 insert into metodos_pagos (metodo_pago_nombre)
 select v.nombre

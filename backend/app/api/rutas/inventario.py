@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query, status
 from app.api.deps import empleado_actual, requerir_roles, servicio_inventario
 from app.modelos.inventario import MovimientoCrear, MovimientoOut
 from app.negocio.inventario_servicio import InventarioServicio
-from app.negocio.reglas import ROL_ADMINISTRADOR, ROL_ALMACENERO
+from app.negocio.reglas import ROL_ADMINISTRADOR
 
 router = APIRouter(prefix="/inventario", tags=["Inventario / Kardex"])
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/inventario", tags=["Inventario / Kardex"])
     "/movimientos",
     response_model=MovimientoOut,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(requerir_roles(ROL_ADMINISTRADOR, ROL_ALMACENERO))],
+    dependencies=[Depends(requerir_roles(ROL_ADMINISTRADOR))],
 )
 def registrar_movimiento(
     datos: MovimientoCrear, servicio: InventarioServicio = Depends(servicio_inventario)

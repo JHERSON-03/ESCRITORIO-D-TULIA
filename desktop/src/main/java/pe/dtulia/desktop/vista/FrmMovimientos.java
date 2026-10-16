@@ -53,8 +53,8 @@ public class FrmMovimientos extends BorderPane {
     private static final Set<String> ANULABLES = Set.of(ENTRADA, MERMA, AJUSTE);
     private static final String TODOS = "TODOS";
     /** Opciones del filtro del Kardex: los tipos manuales más los que genera la base de datos. */
-    private static final List<String> FILTROS_KARDEX = List.of(TODOS, ENTRADA, MERMA, AJUSTE, "SALIDA_VENTA",
-            "SALIDA_VIAJE", "RETORNO_VIAJE", "ANULACION");
+    private static final List<String> FILTROS_KARDEX = List.of(TODOS, ENTRADA, "ENTRADA_PRODUCCION", MERMA, AJUSTE,
+            "SALIDA_VENTA", "SALIDA_VIAJE", "RETORNO_VIAJE", "ANULACION");
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final Servicios servicios;
@@ -133,6 +133,14 @@ public class FrmMovimientos extends BorderPane {
         grilla.setHgap(10);
         grilla.setVgap(8);
         grilla.addRow(0, new Label("Producto"), cboProducto, new Label("Stock actual"), lblStockActual);
+        ColumnConstraints etiqueta = new ColumnConstraints();
+        ColumnConstraints campo = new ColumnConstraints(200, 300, Double.MAX_VALUE);
+        campo.setHgrow(Priority.ALWAYS);
+        grilla.getColumnConstraints().setAll(etiqueta, campo, etiqueta, campo);
+        if (!empleado.esAdministrador()) {
+            return Ui.seccion("Consultar Kardex", grilla); // el almacenero solo consulta
+        }
+
         // ENTRADA: cajas + unidades; MERMA y AJUSTE: unidades
         HBox cantidad = new HBox(spnCantidad, campoCajas);
         cantidad.setAlignment(Pos.CENTER_LEFT);
@@ -140,10 +148,6 @@ public class FrmMovimientos extends BorderPane {
         grilla.addRow(2, new Label("Referencia"), txtReferencia);
         GridPane.setColumnSpan(txtReferencia, 3);
         grilla.add(lblAyuda, 1, 3, 3, 1);
-        ColumnConstraints etiqueta = new ColumnConstraints();
-        ColumnConstraints campo = new ColumnConstraints(200, 300, Double.MAX_VALUE);
-        campo.setHgrow(Priority.ALWAYS);
-        grilla.getColumnConstraints().setAll(etiqueta, campo, etiqueta, campo);
 
         HBox acciones = new HBox(btnRegistrar);
         acciones.setAlignment(Pos.CENTER_RIGHT);
@@ -318,8 +322,8 @@ public class FrmMovimientos extends BorderPane {
             return;
         }
         if (!ANULABLES.contains(movimiento.tipo())) {
-            Ui.mostrarError(ventana(), "Solo se pueden anular entradas, mermas y ajustes. "
-                    + "Las ventas se corrigen desde su comprobante y los viajes desde la pestaña Viajes.");
+            Ui.mostrarError(ventana(), "Solo se pueden anular entradas, mermas y ajustes. Las ventas se corrigen "
+                    + "desde su comprobante, los viajes desde la pestaña Viajes y lo recibido de la fábrica con un ajuste.");
             return;
         }
 

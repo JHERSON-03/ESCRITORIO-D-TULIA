@@ -8,6 +8,7 @@ import pe.dtulia.desktop.servicio.ApiClient;
 import pe.dtulia.desktop.servicio.AuthServicio;
 import pe.dtulia.desktop.servicio.CatalogoServicio;
 import pe.dtulia.desktop.servicio.InventarioServicio;
+import pe.dtulia.desktop.servicio.ProduccionServicio;
 import pe.dtulia.desktop.servicio.ProductoServicio;
 import pe.dtulia.desktop.servicio.Servicios;
 import pe.dtulia.desktop.servicio.VentaServicio;
@@ -30,7 +31,8 @@ public class App extends Application {
                 new ProductoServicio(api),
                 new VentaServicio(api),
                 new InventarioServicio(api),
-                new ViajeServicio(api));
+                new ViajeServicio(api),
+                new ProduccionServicio(api));
         mostrarLogin();
     }
 

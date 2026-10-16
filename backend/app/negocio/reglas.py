@@ -2,8 +2,9 @@
 
 from decimal import ROUND_HALF_UP, Decimal
 
+# ADMINISTRADOR: las administradoras del almacén y de la fábrica (acceso a todo).
+# ALMACENERO: saca las cajas; en el sistema solo consulta inventario y Kardex.
 ROL_ADMINISTRADOR = "ADMINISTRADOR"
-ROL_VENDEDOR = "VENDEDOR"
 ROL_ALMACENERO = "ALMACENERO"
 
 CANALES_VENTA = ("TIENDA", "DELIVERY", "WHATSAPP", "REDES SOCIALES")

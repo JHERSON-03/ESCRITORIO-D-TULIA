@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.rutas import auth, catalogos, clientes, comprobantes, inventario, productos, viajes
+from app.api.rutas import auth, catalogos, clientes, comprobantes, inventario, producciones, productos, viajes
 from app.core.config import obtener_configuracion
 from app.core.database import abrir_pool, cerrar_pool, obtener_conexion
 from app.core.errores import registrar_manejadores
@@ -27,7 +27,7 @@ app = FastAPI(
 )
 registrar_manejadores(app)
 
-for modulo in (auth, productos, comprobantes, catalogos, clientes, inventario, viajes):
+for modulo in (auth, productos, comprobantes, catalogos, clientes, inventario, viajes, producciones):
     app.include_router(modulo.router)
 
 

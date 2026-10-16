@@ -5,7 +5,7 @@ Arquitectura en **N-Capas**:
 
 ```
 ┌────────────────────────────────────┐
-│ PRESENTACIÓN · Java 17 + JavaFX    │  desktop/   FrmLogin · FrmProductos · FrmVentas · FrmMovimientos · FrmViajes
+│ PRESENTACIÓN · Java 17 + JavaFX    │  desktop/   FrmLogin · FrmProductos · FrmVentas · FrmMovimientos · FrmViajes · FrmProduccion
 │   vista → servicio → modelo        │             HttpClient (JDK) + Jackson
 └───────────────┬────────────────────┘
                 │ HTTP / JSON + JWT
@@ -31,7 +31,8 @@ WEB D'TULIA/
 ├── database/                    CAPA DE DATOS (sobre el modelo existente en Supabase)
 │   ├── 01_complementos.sql      login, índices, presentaciones, funciones para la API y registro de ventas
 │   ├── 02_datos_iniciales.sql   cargos, métodos de pago, comprobantes, cliente genérico, admin, almacén
-│   └── 03_viajes.sql            mercadería que lleva el jefe: envíos, liquidación y diferencias
+│   ├── 03_viajes.sql            mercadería que lleva el jefe: envíos, liquidación y diferencias
+│   └── 04_produccion.sql        envíos de la fábrica al almacén y su recepción
 ├── backend/                     CAPA DE NEGOCIO + API (Python)
 │   ├── .env.example
 │   ├── requirements.txt
@@ -52,7 +53,7 @@ WEB D'TULIA/
         │   ├── config/          URL de la API
         │   ├── modelo/          records (Producto, VentaSolicitud, …)
         │   ├── servicio/        ApiClient + servicios HTTP
-        │   └── vista/           FrmLogin · FrmPrincipal · FrmProductos · FrmVentas · FrmMovimientos · FrmViajes
+        │   └── vista/           FrmLogin · FrmPrincipal · FrmProductos · FrmVentas · FrmMovimientos · FrmViajes · FrmProduccion
         └── resources/pe/dtulia/desktop/estilos.css
 ```
 
@@ -65,14 +66,17 @@ En **SQL Editor** ejecuta, en orden:
 1. `01_complementos.sql`: agrega sin modificar nada existente
 2. `02_datos_iniciales.sql`: completa los catálogos vacíos, marca TRUJILLO como almacén y crea las presentaciones de cada producto
 3. `03_viajes.sql`: control de la mercadería que lleva el jefe
+4. `04_produccion.sql`: envíos de la fábrica al almacén
 
-Los tres son idempotentes (se pueden ejecutar más de una vez).
+Todos son idempotentes (se pueden ejecutar más de una vez).
 
 ### Modelo del negocio
 
 - **Un solo almacén (Trujillo)**: todo sale de ahí, también lo que se vende en las tiendas. La sede marcada con `sede_es_almacen` es donde se registran las ventas; las demás sedes son **ciudades de destino**.
 - **Presentaciones**: cada tamaño es un producto propio con su precio y su stock (*VINO ROSÉ · 750 ML* y *VINO ROSÉ · 4 L*). El stock se guarda en unidades; las cajas solo sirven para ingresar y mostrar cantidades.
 - **Viajes del jefe**: lleva mercadería, la vende en otras ciudades con comprobantes en papel y no tiene fecha fija de regreso. El sistema controla productos (no dinero): llevó − vendió − regresó − merma = diferencia.
+- **Producción**: en la fábrica hacen, embotellan y encajan, y lo anotan en un cuaderno. La administradora de la fábrica lo registra como *envío de producción*; la del almacén confirma lo que llegó y recién ahí sube el stock. Si no coincide, queda la diferencia con una observación.
+- **Cargos**: `ADMINISTRADOR` (las administradoras del almacén y de la fábrica, con acceso a todo; el sistema guarda quién hizo cada cosa) y `ALMACENERO` (saca las cajas; en el sistema solo consulta Inventario y Kardex). La boleta se emite cuando las cajas ya salieron, así el stock baja en el momento correcto; los envíos al jefe se registran igual: cuando las cajas ya salieron.
 
 ### Qué agrega `01_complementos.sql`
 
@@ -107,11 +111,23 @@ Las presentaciones creadas por `02_datos_iniciales.sql` nacen con **precio 0 y s
 
 Las ventas del viaje **no** pasan por comprobantes: esa mercadería ya salió del almacén y el trigger de ventas la descontaría dos veces.
 
+### Qué agrega `04_produccion.sql`
+
+| Objeto | Qué hace |
+|---|---|
+| `producciones` · `produccion_detalle` | Envío de la fábrica: quién lo envió, estado `EN_CAMINO` / `RECIBIDO` / `ANULADO`, quién lo recibió, y por producto lo enviado y lo recibido |
+| `fn_produccion_registrar` | La fábrica registra lo que manda. El stock **no** cambia todavía |
+| `fn_produccion_recibir` | El almacén confirma lo que llegó: suma al stock con `ENTRADA_PRODUCCION` (referencia `PRODUCCIÓN #n`). Si no coincide con lo enviado, exige observación |
+| `fn_produccion_anular` | Envío registrado por error, solo mientras está en camino |
+| `fn_producciones_listar` · `fn_produccion_productos` | Consultas para las pantallas |
+
+Lo recibido de la fábrica no se anula desde el Kardex; si hubo un error se corrige con un **ajuste**. El cargo `VENDEDOR` se eliminó en `02_datos_iniciales.sql` (las boletas las emite la administradora del almacén).
+
 ### Crear empleados
 
 ```sql
--- cargo: ADMINISTRADOR | VENDEDOR | ALMACENERO
-select fn_empleado_registrar('VENDEDOR', '45678912', 'Luis Paredes Soto', 'Contraseña2026!');
+-- cargo: ADMINISTRADOR | ALMACENERO
+select fn_empleado_registrar('ADMINISTRADOR', '45678912', 'Rosa Paredes Soto', 'Contraseña2026!');
 ```
 
 Si el documento ya existe, actualiza su cargo, nombre y contraseña (sirve también para cambiar claves).
@@ -152,16 +168,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\api_automatica.ps1 desinstala
 | GET | `/productos` | cualquiera | Catálogo con stock actual (`?buscar=`, `?tipo_producto_id=`) |
 | GET | `/productos/{id}` | cualquiera | Detalle de un producto |
 | POST · PATCH · DELETE | `/productos[/{id}]` | ADMINISTRADOR | CRUD de productos |
-| POST | `/comprobantes` | cualquiera | Registra la venta en el almacén (boleta, factura o nota de venta) |
-| POST | `/inventario/movimientos` | ADMINISTRADOR, ALMACENERO | `ENTRADA` (cantidad), `MERMA` (cantidad + motivo) o `AJUSTE` (stock_real) |
+| POST | `/comprobantes` | ADMINISTRADOR | Registra la venta en el almacén (boleta, factura o nota de venta) |
+| POST | `/inventario/movimientos` | ADMINISTRADOR | `ENTRADA` (cantidad), `MERMA` (cantidad + motivo) o `AJUSTE` (stock_real) |
 | POST | `/inventario/movimientos/{id}/anular` | ADMINISTRADOR | Revierte una entrada, merma o ajuste |
 | GET | `/inventario/kardex/{producto_id}` | cualquiera | Movimientos del producto (más reciente primero) |
-| GET | `/viajes?estado=` · `/viajes/{id}` | ADMINISTRADOR, ALMACENERO | Viajes con totales / detalle (productos, envíos y ventas por ciudad) |
-| POST | `/viajes` · `/viajes/{id}/envios` | ADMINISTRADOR, ALMACENERO | Carga inicial / envío durante el viaje: `{sede_id, referencia, items: [{producto_id, cantidad}]}` |
-| POST | `/viajes/{id}/liquidar` | ADMINISTRADOR, ALMACENERO | `{ventas: [{producto_id, sede_id, cantidad}], retornos: [{producto_id, devuelto, merma, motivo}], observacion}` |
+| GET | `/viajes?estado=` · `/viajes/{id}` | ADMINISTRADOR | Viajes con totales / detalle (productos, envíos y ventas por ciudad) |
+| POST | `/viajes` · `/viajes/{id}/envios` | ADMINISTRADOR | Carga inicial / envío durante el viaje: `{sede_id, referencia, items: [{producto_id, cantidad}]}` |
+| POST | `/viajes/{id}/liquidar` | ADMINISTRADOR | `{ventas: [{producto_id, sede_id, cantidad}], retornos: [{producto_id, devuelto, merma, motivo}], observacion}` |
 | POST | `/viajes/envios/{envio_id}/anular` | ADMINISTRADOR | Devuelve al almacén un envío registrado por error |
+| GET | `/producciones?estado=` · `/producciones/{id}` | ADMINISTRADOR | Envíos de la fábrica (`EN_CAMINO`, `RECIBIDO`, `ANULADO`) / detalle por producto |
+| POST | `/producciones` | ADMINISTRADOR | La fábrica registra lo que manda: `{referencia, items: [{producto_id, cantidad}]}` |
+| POST | `/producciones/{id}/recibir` | ADMINISTRADOR | El almacén confirma lo que llegó: `{items: [{producto_id, cantidad}], observacion}` |
+| POST | `/producciones/{id}/anular` | ADMINISTRADOR | Envío registrado por error (solo en camino): `{observacion}` |
 | GET | `/catalogos/sedes` · `/presentaciones` · `/tipos-producto` · `/tipos-comprobante` · `/metodos-pago` · `/canales-venta` | cualquiera | Combos de los formularios |
-| GET · POST | `/clientes/{dni_ruc}` · `/clientes` | cualquiera | Buscar / registrar cliente |
+| GET · POST | `/clientes/{dni_ruc}` · `/clientes` | ADMINISTRADOR | Buscar / registrar cliente (al emitir comprobantes) |
 
 Errores de la BD → HTTP: stock insuficiente **409**, datos inválidos o reglas de tus funciones (`RAISE EXCEPTION`) **422**, no encontrado **404**.
 
@@ -190,9 +210,10 @@ Por defecto se conecta a `http://127.0.0.1:8000`. Para otra URL: `$env:DTULIA_AP
 
 - **FrmLogin**: documento y contraseña. Todos trabajan desde el almacén de Trujillo.
 - **FrmProductos**: grilla de inventario (`GET /productos`) con presentación y stock en cajas, búsqueda, filtros por **tipo**, **presentación**, con stock y stock bajo, colores de alerta y refresco automático cada 30 s. El administrador edita precios (botón *Editar precio* o doble clic).
-- **FrmVentas**: comprobante, método de pago, **canal**, cliente (busca o registra por DNI/RUC), carrito y envío a `POST /comprobantes`.
-- **FrmMovimientos** (solo ADMINISTRADOR y ALMACENERO): entradas (en **cajas + unidades**), mermas y ajustes de stock con el Kardex del producto filtrable por tipo de movimiento; el administrador puede anular movimientos.
-- **FrmViajes** (solo ADMINISTRADOR y ALMACENERO): *Nuevo viaje* (carga inicial), *Enviar al viaje* (lo que el jefe pide, en cajas o unidades), *Imprimir hoja* (hoja de carga con columnas en blanco para que el jefe anote lo vendido en cada ciudad; si el viaje ya se liquidó imprime los valores) y *Liquidar viaje* (vendido por ciudad, lo que regresó y la merma, con la diferencia calculada mientras se escribe). El administrador puede anular un envío mientras el viaje está abierto.
+- **FrmVentas** (solo ADMINISTRADOR): comprobante, método de pago, **canal**, cliente (busca o registra por DNI/RUC), carrito y envío a `POST /comprobantes`.
+- **FrmMovimientos**: para ADMINISTRADOR, entradas (en **cajas + unidades**), mermas y ajustes de stock con el Kardex del producto filtrable por tipo de movimiento, y anulación de movimientos. Para ALMACENERO es la pestaña **Kardex**: solo consulta.
+- **FrmViajes** (solo ADMINISTRADOR): *Nuevo viaje* (carga inicial), *Enviar al viaje* (lo que el jefe pide, en cajas o unidades), *Imprimir hoja* (hoja de carga con columnas en blanco para que el jefe anote lo vendido en cada ciudad; si el viaje ya se liquidó imprime los valores) y *Liquidar viaje* (vendido por ciudad, lo que regresó y la merma, con la diferencia calculada mientras se escribe). El administrador puede anular un envío mientras el viaje está abierto.
+- **FrmProduccion** (solo ADMINISTRADOR): *Nuevo envío (fábrica)* en cajas + unidades, *Recibir (almacén)* precargado con lo enviado y la diferencia calculada mientras se escribe, y *Anular envío*. La lista se refresca cada 60 s y el título de la pestaña muestra cuántos envíos siguen en camino, por ejemplo **Producción (2)**.
 
 Se eligió **JavaFX** sobre Swing porque ofrece `TableView` con ordenamiento y filtrado, estilos CSS y un modelo de hilos claro (`Platform.runLater`) para peticiones asíncronas. Las llamadas HTTP usan `java.net.http.HttpClient` del JDK y **Jackson** convierte JSON (`snake_case`) ⇄ records Java.
 
@@ -203,3 +224,28 @@ Se eligió **JavaFX** sobre Swing porque ofrece `TableView` con ordenamiento y f
 | 00000001 | DTulia2026! | ADMINISTRADOR |
 
 Crea a tu personal con `fn_empleado_registrar` (ver Paso 1) y cambia la contraseña del administrador inicial ejecutando la misma función con una nueva clave.
+
+## Instalar en la laptop de la fábrica
+
+La base de datos está en Supabase (en la nube); cada laptop corre su propia API local que se conecta a ella. La laptop necesita **internet** para registrar.
+
+1. Instala **Python 3.13**, **JDK 17+**, **Maven** y **Git**.
+2. Descarga el proyecto:
+   ```powershell
+   git clone https://github.com/JHERSON-03/ESCRITORIO-D-TULIA.git
+   cd ESCRITORIO-D-TULIA\backend
+   python -m venv .venv
+   .venv\Scripts\pip install -r requirements.txt
+   ```
+3. Copia el archivo `backend\.env` de la PC del almacén a la misma carpeta de la laptop **con una memoria USB** (tiene la contraseña de la base de datos: nunca lo mandes por correo, WhatsApp ni lo subas a GitHub).
+4. Deja la API siempre activa:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\api_automatica.ps1 instalar
+   ```
+5. Crea el usuario de la administradora de la fábrica en el **SQL Editor** de Supabase:
+   ```sql
+   select fn_empleado_registrar('ADMINISTRADOR', 'SU_DNI', 'NOMBRE COMPLETO', 'UnaClaveSegura2026');
+   ```
+6. Abre la aplicación (`cd ..\desktop` y `mvn javafx:run`) e ingresa con ese DNI. En la pestaña **Producción** registra cada envío con *Nuevo envío (fábrica)*.
+
+Para actualizar después: `git pull` en la carpeta del proyecto y `api_automatica.ps1 reiniciar`.

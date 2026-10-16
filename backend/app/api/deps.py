@@ -11,6 +11,7 @@ from app.datos.catalogo_repositorio import CatalogoRepositorio
 from app.datos.cliente_repositorio import ClienteRepositorio
 from app.datos.empleado_repositorio import EmpleadoRepositorio
 from app.datos.inventario_repositorio import InventarioRepositorio
+from app.datos.produccion_repositorio import ProduccionRepositorio
 from app.datos.producto_repositorio import ProductoRepositorio
 from app.datos.venta_repositorio import VentaRepositorio
 from app.datos.viaje_repositorio import ViajeRepositorio
@@ -19,6 +20,7 @@ from app.negocio.auth_servicio import AuthServicio
 from app.negocio.catalogo_servicio import CatalogoServicio
 from app.negocio.cliente_servicio import ClienteServicio
 from app.negocio.inventario_servicio import InventarioServicio
+from app.negocio.produccion_servicio import ProduccionServicio
 from app.negocio.producto_servicio import ProductoServicio
 from app.negocio.venta_servicio import VentaServicio
 from app.negocio.viaje_servicio import ViajeServicio
@@ -78,3 +80,7 @@ def servicio_inventario() -> InventarioServicio:
 
 def servicio_viajes() -> ViajeServicio:
     return ViajeServicio(ViajeRepositorio())
+
+
+def servicio_producciones() -> ProduccionServicio:
+    return ProduccionServicio(ProduccionRepositorio())

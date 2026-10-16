@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, status
 
-from app.api.deps import empleado_actual, servicio_ventas
+from app.api.deps import requerir_roles, servicio_ventas
 from app.modelos.auth import EmpleadoToken
 from app.modelos.comprobante import ComprobanteCrear, ComprobanteOut
+from app.negocio.reglas import ROL_ADMINISTRADOR
 from app.negocio.venta_servicio import VentaServicio
 
 router = APIRouter(prefix="/comprobantes", tags=["Ventas"])
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/comprobantes", tags=["Ventas"])
 )
 def registrar_venta(
     solicitud: ComprobanteCrear,
-    empleado: EmpleadoToken = Depends(empleado_actual),
+    empleado: EmpleadoToken = Depends(requerir_roles(ROL_ADMINISTRADOR)),
     servicio: VentaServicio = Depends(servicio_ventas),
 ) -> ComprobanteOut:
     """Emite boleta, factura o nota de venta en el almacén (sede de la sesión). El trigger

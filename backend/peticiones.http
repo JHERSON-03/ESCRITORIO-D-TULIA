@@ -76,3 +76,21 @@ Content-Type: application/json
   "retornos": [ { "producto_id": 1, "devuelto": 4, "merma": 1, "motivo": "Rotura" } ],
   "observacion": null
 }
+
+### 11. La fábrica manda 20 cajas de VINO ROSÉ 750 ML (20 × 12 = 240 unidades)
+POST {{api}}/producciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "referencia": "Lote 15", "items": [ { "producto_id": 1, "cantidad": 240 } ] }
+
+### 12. Envíos de la fábrica que faltan recibir
+GET {{api}}/producciones?estado=EN_CAMINO
+Authorization: Bearer {{token}}
+
+### 13. El almacén confirma: llegaron 19 cajas (228 unidades)
+POST {{api}}/producciones/1/recibir
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "items": [ { "producto_id": 1, "cantidad": 228 } ], "observacion": "Llegó una caja menos" }

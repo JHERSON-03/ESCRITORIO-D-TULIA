@@ -131,3 +131,34 @@
     -fx-font-weight: bold;
     -fx-text-fill: -dt-suave;
 }
+
+/* ---- Ventas: tabla de precios y stock ---- */
+.centrado {
+    -fx-alignment: CENTER;
+}
+
+.celda-apagada {
+    -fx-text-fill: #b5aaae;
+}
+
+.filtro-tipo {
+    -fx-background-radius: 14;
+    -fx-padding: 4 12;
+    -fx-cursor: hand;
+}
+
+.filtro-tipo:selected {
+    -fx-background-color: -dt-vino;
+    -fx-text-fill: white;
+}
+
+/* Dos columnas de Ventas: el separador se ve como espacio entre las secciones */
+.split-pane.columnas {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.split-pane.columnas > .split-pane-divider {
+    -fx-background-color: transparent;
+    -fx-padding: 0 5;
+}

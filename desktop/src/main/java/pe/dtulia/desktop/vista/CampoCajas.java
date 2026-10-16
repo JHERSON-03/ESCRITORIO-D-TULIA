@@ -17,6 +17,8 @@ class CampoCajas extends HBox {
     private final Label lblPorCaja = new Label();
     private final Label lblTotal = new Label();
     private int porCaja = 1;
+    private Runnable alCambiar = () -> {
+    };
 
     CampoCajas() {
         super(6);
@@ -36,10 +38,38 @@ class CampoCajas extends HBox {
 
     /** Las unidades por caja dependen de la presentación del producto elegido. */
     void setProducto(Producto producto) {
-        porCaja = producto == null ? 1 : producto.unidadesCaja();
-        lblPorCaja.setText(producto == null ? "" : "(×" + porCaja + ")");
-        spnCajas.setDisable(producto == null);
+        setPorCaja(producto == null ? 0 : producto.unidadesCaja());
+    }
+
+    /** porCaja 0 = sin producto elegido (solo unidades). */
+    void setPorCaja(int unidadesPorCaja) {
+        porCaja = Math.max(1, unidadesPorCaja);
+        lblPorCaja.setText(unidadesPorCaja <= 0 ? "" : "(×" + porCaja + ")");
+        spnCajas.setDisable(unidadesPorCaja <= 0);
         actualizar();
+    }
+
+    /** Muestra un total en unidades repartido en cajas completas y sueltas. */
+    void setUnidades(int total) {
+        spnCajas.getValueFactory().setValue(porCaja > 1 ? total / porCaja : 0);
+        spnUnidades.getValueFactory().setValue(porCaja > 1 ? total % porCaja : total);
+        actualizar();
+    }
+
+    /** Se ejecuta mientras se escribe (para recalcular diferencias). */
+    void setAlCambiar(Runnable accion) {
+        alCambiar = accion;
+    }
+
+    /** Se ejecuta al presionar Enter en las cajas o en las unidades (por ejemplo, para agregar). */
+    void setAlConfirmar(Runnable accion) {
+        spnCajas.getEditor().setOnAction(e -> accion.run());
+        spnUnidades.getEditor().setOnAction(e -> accion.run());
+    }
+
+    /** Total para cálculos en vivo: texto vacío o inválido cuenta como 0. */
+    int totalParcial() {
+        return Math.max(0, leer(spnCajas)) * porCaja + Math.max(0, leer(spnUnidades));
     }
 
     /** Total en unidades, o -1 si algún número no es válido. */
@@ -59,6 +89,9 @@ class CampoCajas extends HBox {
         int cajas = leer(spnCajas);
         int unidades = leer(spnUnidades);
         lblTotal.setText(cajas < 0 || unidades < 0 ? "= ?" : "= " + (cajas * porCaja + unidades) + " unidades");
+        if (alCambiar != null) {
+            alCambiar.run();
+        }
     }
 
     /** Lectura sin confirmar el valor en el Spinner (se usa mientras el usuario escribe). */

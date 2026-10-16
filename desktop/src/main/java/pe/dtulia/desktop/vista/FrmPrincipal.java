@@ -15,34 +15,41 @@ import pe.dtulia.desktop.modelo.Empleado;
 import pe.dtulia.desktop.modelo.Sesion;
 import pe.dtulia.desktop.servicio.Servicios;
 
-/** Ventana principal: pestañas según el cargo del empleado. */
+/**
+ * Ventana principal: pestañas según el cargo. Las administradoras (almacén y fábrica) ven todo;
+ * el almacenero solo consulta Inventario y Kardex.
+ */
 public class FrmPrincipal extends Stage {
 
     public FrmPrincipal(Sesion sesion, Servicios servicios, Runnable alCerrarSesion) {
         Empleado empleado = sesion.empleado();
+        boolean administrador = empleado.esAdministrador();
 
         FrmProductos frmProductos = new FrmProductos(servicios, empleado);
-        FrmVentas frmVentas = new FrmVentas(servicios, frmProductos::recargar);
+        TabPane pestanas = new TabPane(new Tab("Inventario", frmProductos));
 
-        Tab tabInventario = new Tab("Inventario", frmProductos);
-        Tab tabVentas = new Tab("Ventas", frmVentas);
-        tabVentas.setOnSelectionChanged(e -> {
-            if (tabVentas.isSelected()) {
-                frmVentas.cargarProductos();
-            }
-        });
-        TabPane pestanas = new TabPane(tabInventario, tabVentas);
-
-        if (empleado.gestionaInventario()) {
-            FrmMovimientos frmMovimientos = new FrmMovimientos(servicios, empleado, frmProductos::recargar);
-            Tab tabMovimientos = new Tab("Movimientos de stock", frmMovimientos);
-            tabMovimientos.setOnSelectionChanged(e -> {
-                if (tabMovimientos.isSelected()) {
-                    frmMovimientos.cargarProductos();
+        if (administrador) {
+            FrmVentas frmVentas = new FrmVentas(servicios, frmProductos::recargar);
+            Tab tabVentas = new Tab("Ventas", frmVentas);
+            tabVentas.setOnSelectionChanged(e -> {
+                if (tabVentas.isSelected()) {
+                    frmVentas.cargarProductos();
                 }
             });
-            pestanas.getTabs().add(tabMovimientos);
+            pestanas.getTabs().add(tabVentas);
+        }
 
+        FrmMovimientos frmMovimientos = new FrmMovimientos(servicios, empleado, frmProductos::recargar);
+        Tab tabMovimientos = new Tab(administrador ? "Movimientos de stock" : "Kardex", frmMovimientos);
+        tabMovimientos.setOnSelectionChanged(e -> {
+            if (tabMovimientos.isSelected()) {
+                frmMovimientos.cargarProductos();
+            }
+        });
+        pestanas.getTabs().add(tabMovimientos);
+
+        FrmProduccion frmProduccion = null;
+        if (administrador) {
             FrmViajes frmViajes = new FrmViajes(servicios, empleado, frmProductos::recargar);
             Tab tabViajes = new Tab("Viajes", frmViajes);
             tabViajes.setOnSelectionChanged(e -> {
@@ -51,8 +58,22 @@ public class FrmPrincipal extends Stage {
                 }
             });
             pestanas.getTabs().add(tabViajes);
+
+            Tab tabProduccion = new Tab("Producción");
+            // El título avisa cuántos envíos de la fábrica falta recibir
+            frmProduccion = new FrmProduccion(servicios, frmProductos::recargar,
+                    enCamino -> tabProduccion.setText(enCamino == 0 ? "Producción" : "Producción (" + enCamino + ")"));
+            FrmProduccion produccion = frmProduccion;
+            tabProduccion.setContent(produccion);
+            tabProduccion.setOnSelectionChanged(e -> {
+                if (tabProduccion.isSelected()) {
+                    produccion.recargar();
+                }
+            });
+            pestanas.getTabs().add(tabProduccion);
         }
         pestanas.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        FrmProduccion produccionAbierta = frmProduccion;
 
         Label marca = new Label("D'Tulia");
         marca.getStyleClass().add("cabecera-marca");
@@ -78,6 +99,11 @@ public class FrmPrincipal extends Stage {
         setTitle("D'Tulia · Almacén " + empleado.sede());
         setMinWidth(900);
         setMinHeight(560);
-        setOnHidden(e -> frmProductos.detener());
+        setOnHidden(e -> {
+            frmProductos.detener();
+            if (produccionAbierta != null) {
+                produccionAbierta.detener();
+            }
+        });
     }
 }

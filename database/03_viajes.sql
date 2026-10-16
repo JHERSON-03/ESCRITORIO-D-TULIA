@@ -544,8 +544,9 @@ as $$
 $$;
 
 -- ---------------------------------------------------------------------
--- 6. Kardex: los movimientos de un viaje no se anulan desde ahí, porque
---    descuadrarían el viaje (se corrigen con fn_viaje_anular_envio).
+-- 6. Kardex: los movimientos de un viaje o de un envío de producción
+--    (04_produccion.sql) no se anulan desde ahí, porque descuadrarían su
+--    registro (se corrigen desde su pestaña).
 --    Misma función existente con esa validación agregada.
 -- ---------------------------------------------------------------------
 create or replace function public.fn_anular_movimiento(p_movimiento_id integer)
@@ -570,6 +571,10 @@ begin
 
     if v_mov.movimiento_tipo in ('SALIDA_VIAJE', 'RETORNO_VIAJE') then
         raise exception 'Los movimientos de un viaje se corrigen desde la pestaña Viajes';
+    end if;
+
+    if v_mov.movimiento_tipo = 'ENTRADA_PRODUCCION' then
+        raise exception 'Lo recibido de la fábrica no se anula desde el Kardex; si hubo un error, registre un ajuste';
     end if;
 
     if exists (select 1 from movimientos_inventario
