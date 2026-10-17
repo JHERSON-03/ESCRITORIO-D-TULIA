@@ -7,6 +7,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from psycopg_pool import PoolTimeout
 
+from app.core.database import estadisticas_pool
+
 logger = logging.getLogger("dtulia")
 
 
@@ -76,5 +78,5 @@ def registrar_manejadores(app: FastAPI) -> None:
 
     @app.exception_handler(PoolTimeout)
     async def _pool_agotado(_: Request, exc: PoolTimeout) -> JSONResponse:
-        logger.error("Pool de conexiones agotado: %s", exc)
+        logger.error("Pool de conexiones agotado: %s | %s", exc, estadisticas_pool())
         return JSONResponse(status_code=503, content={"detail": "Servidor ocupado, intente nuevamente"})

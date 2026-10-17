@@ -1,15 +1,26 @@
 import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from uvicorn.logging import AccessFormatter
 
 from app.api.rutas import auth, catalogos, clientes, comprobantes, inventario, producciones, productos, viajes
 from app.core.config import obtener_configuracion
-from app.core.database import abrir_pool, cerrar_pool, obtener_conexion
+from app.core.database import abrir_pool, cerrar_pool, estadisticas_pool, obtener_conexion
 from app.core.errores import registrar_manejadores
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("dtulia")
+
+# Fecha y hora en cada petición del registro (logs\api.log), para poder reconstruir cualquier falla
+for _manejador in logging.getLogger("uvicorn.access").handlers:
+    _manejador.setFormatter(AccessFormatter(
+        '%(asctime)s %(client_addr)s - "%(request_line)s" %(status_code)s', use_colors=False))
+
+# Una petición que tarda más que esto queda anotada junto con el estado del pool
+_SEGUNDOS_PETICION_LENTA = 3
 
 
 @asynccontextmanager
@@ -26,6 +37,17 @@ app = FastAPI(
     lifespan=ciclo_de_vida,
 )
 registrar_manejadores(app)
+
+
+@app.middleware("http")
+async def anotar_peticiones_lentas(request: Request, siguiente):
+    inicio = time.monotonic()
+    respuesta = await siguiente(request)
+    segundos = time.monotonic() - inicio
+    if segundos > _SEGUNDOS_PETICION_LENTA:
+        logger.warning("Petición lenta: %s %s tardó %.1f s | %s",
+                       request.method, request.url.path, segundos, estadisticas_pool())
+    return respuesta
 
 for modulo in (auth, productos, comprobantes, catalogos, clientes, inventario, viajes, producciones):
     app.include_router(modulo.router)

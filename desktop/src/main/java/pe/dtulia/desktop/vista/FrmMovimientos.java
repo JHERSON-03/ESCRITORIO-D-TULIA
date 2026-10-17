@@ -31,6 +31,7 @@ import pe.dtulia.desktop.modelo.Empleado;
 import pe.dtulia.desktop.modelo.Movimiento;
 import pe.dtulia.desktop.modelo.MovimientoSolicitud;
 import pe.dtulia.desktop.modelo.Producto;
+import pe.dtulia.desktop.modelo.TipoProducto;
 import pe.dtulia.desktop.servicio.Servicios;
 
 import java.time.ZoneId;
@@ -61,7 +62,13 @@ public class FrmMovimientos extends BorderPane {
     private final Empleado empleado;
     private final Runnable alCambiarStock;
 
+    private List<Producto> productos = List.of();
+    /** Tipo → nombre → presentación: cada presentación es un producto distinto (cboProducto). */
+    private final ComboBox<TipoProducto> cboTipoProducto = new ComboBox<>();
+    private final ComboBox<String> cboNombre = new ComboBox<>();
     private final ComboBox<Producto> cboProducto = new ComboBox<>();
+    /** Mientras se rellenan los desplegables en cadena, sus oyentes no deben volver a dispararla. */
+    private boolean encadenando;
     private final ComboBox<String> cboTipo = new ComboBox<>(FXCollections.observableArrayList(ENTRADA, MERMA, AJUSTE));
     private final Label lblCantidad = new Label("Cantidad");
     private final Spinner<Integer> spnCantidad = new Spinner<>();
@@ -89,6 +96,16 @@ public class FrmMovimientos extends BorderPane {
         setCenter(crearKardex());
 
         cboTipo.valueProperty().addListener((obs, antes, ahora) -> adaptarAlTipo());
+        cboTipoProducto.valueProperty().addListener((obs, antes, ahora) -> {
+            if (!encadenando) {
+                mostrarNombresDelTipo(cboProducto.getValue());
+            }
+        });
+        cboNombre.valueProperty().addListener((obs, antes, ahora) -> {
+            if (!encadenando) {
+                mostrarPresentaciones(cboProducto.getValue());
+            }
+        });
         cboProducto.valueProperty().addListener((obs, antes, ahora) -> {
             lblStockActual.setText(ahora == null ? "—"
                     : ahora.stock() + " unidades (" + Ui.cajas(ahora.stock(), ahora.unidadesCaja()) + ")");
@@ -103,13 +120,22 @@ public class FrmMovimientos extends BorderPane {
     // ------------------------------------------------------------------ construcción
 
     private VBox crearFormulario() {
-        cboProducto.setPromptText("Seleccione un producto");
-        cboProducto.setMaxWidth(Double.MAX_VALUE);
+        cboTipoProducto.setPromptText("Seleccione un tipo");
+        cboTipoProducto.setMaxWidth(Double.MAX_VALUE);
+        cboTipoProducto.setVisibleRowCount(14);
+        cboNombre.setPromptText("Seleccione un producto");
+        cboNombre.setMaxWidth(Double.MAX_VALUE);
+        cboNombre.setVisibleRowCount(14);
+        cboNombre.disableProperty().bind(cboTipoProducto.valueProperty().isNull());
+        HBox.setHgrow(cboNombre, Priority.ALWAYS);
+        cboProducto.setPromptText("Presentación");
+        cboProducto.setPrefWidth(170);
         cboProducto.setVisibleRowCount(14);
+        cboProducto.disableProperty().bind(cboNombre.valueProperty().isNull());
         cboProducto.setConverter(new StringConverter<>() {
             @Override
             public String toString(Producto p) {
-                return p == null ? "" : p.tipoProducto() + " · " + p.nombreCompleto();
+                return p == null ? "" : p.presentacion();
             }
 
             @Override
@@ -132,7 +158,9 @@ public class FrmMovimientos extends BorderPane {
         GridPane grilla = new GridPane();
         grilla.setHgap(10);
         grilla.setVgap(8);
-        grilla.addRow(0, new Label("Producto"), cboProducto, new Label("Stock actual"), lblStockActual);
+        grilla.addRow(0, new Label("Tipo de producto"), cboTipoProducto);
+        HBox producto = new HBox(8, cboNombre, cboProducto);
+        grilla.addRow(1, new Label("Producto"), producto, new Label("Stock actual"), lblStockActual);
         ColumnConstraints etiqueta = new ColumnConstraints();
         ColumnConstraints campo = new ColumnConstraints(200, 300, Double.MAX_VALUE);
         campo.setHgrow(Priority.ALWAYS);
@@ -144,10 +172,10 @@ public class FrmMovimientos extends BorderPane {
         // ENTRADA: cajas + unidades; MERMA y AJUSTE: unidades
         HBox cantidad = new HBox(spnCantidad, campoCajas);
         cantidad.setAlignment(Pos.CENTER_LEFT);
-        grilla.addRow(1, new Label("Movimiento"), cboTipo, lblCantidad, cantidad);
-        grilla.addRow(2, new Label("Referencia"), txtReferencia);
+        grilla.addRow(2, new Label("Movimiento"), cboTipo, lblCantidad, cantidad);
+        grilla.addRow(3, new Label("Referencia"), txtReferencia);
         GridPane.setColumnSpan(txtReferencia, 3);
-        grilla.add(lblAyuda, 1, 3, 3, 1);
+        grilla.add(lblAyuda, 1, 4, 3, 1);
 
         HBox acciones = new HBox(btnRegistrar);
         acciones.setAlignment(Pos.CENTER_RIGHT);
@@ -199,7 +227,7 @@ public class FrmMovimientos extends BorderPane {
     /** Vuelve a leer el Kardex guardado y deja solo el tipo elegido en el desplegable. */
     private void mostrarFiltrado() {
         if (cboProducto.getValue() == null) {
-            Ui.mostrarError(ventana(), "Seleccione un producto.");
+            Ui.mostrarError(ventana(), cboNombre.getValue() == null ? "Seleccione un producto." : "Seleccione la presentación.");
             return;
         }
         String tipo = cboFiltro.getValue();
@@ -225,22 +253,57 @@ public class FrmMovimientos extends BorderPane {
 
     // ------------------------------------------------------------------ datos
 
-    /** Recarga los productos manteniendo seleccionado el actual (con su stock al día). */
+    /** Recarga los productos manteniendo seleccionados el tipo y el producto actuales (con su stock al día). */
     public void cargarProductos() {
         Ui.alCompletar(servicios.productos().listar(),
                 lista -> {
-                    Producto anterior = cboProducto.getValue();
-                    List<Producto> ordenados = lista.stream()
+                    Producto productoAnterior = cboProducto.getValue();
+                    productos = lista.stream()
                             .sorted(Comparator.comparing(Producto::tipoProducto).thenComparing(Producto::nombre)
                                     .thenComparingLong(Producto::presentacionId))
                             .toList();
-                    cboProducto.getItems().setAll(ordenados);
-                    if (anterior != null) {
-                        ordenados.stream().filter(p -> p.id() == anterior.id()).findFirst()
-                                .ifPresent(cboProducto::setValue);
-                    }
+                    // Solo los tipos que tienen productos
+                    List<TipoProducto> tipos = productos.stream()
+                            .map(p -> new TipoProducto(p.tipoProductoId(), p.tipoProducto(), null))
+                            .distinct()
+                            .toList();
+                    TipoProducto tipoAnterior = cboTipoProducto.getValue();
+                    encadenando = true;
+                    cboTipoProducto.getItems().setAll(tipos);
+                    cboTipoProducto.setValue(tipoAnterior != null && tipos.contains(tipoAnterior) ? tipoAnterior : null);
+                    encadenando = false;
+                    mostrarNombresDelTipo(productoAnterior);
                 },
                 mensaje -> Ui.mostrarError(ventana(), mensaje));
+    }
+
+    /** Llena los nombres del tipo elegido, conservando el de {@code anterior} si es de ese tipo. */
+    private void mostrarNombresDelTipo(Producto anterior) {
+        TipoProducto tipo = cboTipoProducto.getValue();
+        List<String> nombres = tipo == null ? List.of()
+                : productos.stream().filter(p -> p.tipoProductoId() == tipo.id()).map(Producto::nombre).distinct().toList();
+        String nombreAnterior = anterior != null ? anterior.nombre() : cboNombre.getValue();
+        encadenando = true;
+        cboNombre.getItems().setAll(nombres);
+        // List.of() no admite contains(null)
+        cboNombre.setValue(nombreAnterior != null && nombres.contains(nombreAnterior) ? nombreAnterior : null);
+        encadenando = false;
+        mostrarPresentaciones(anterior);
+    }
+
+    /** Llena las presentaciones del producto elegido; si solo tiene una, queda elegida. */
+    private void mostrarPresentaciones(Producto anterior) {
+        TipoProducto tipo = cboTipoProducto.getValue();
+        String nombre = cboNombre.getValue();
+        List<Producto> presentaciones = tipo == null || nombre == null ? List.of()
+                : productos.stream().filter(p -> p.tipoProductoId() == tipo.id() && p.nombre().equals(nombre)).toList();
+        Producto elegido = anterior == null ? null
+                : presentaciones.stream().filter(p -> p.id() == anterior.id()).findFirst().orElse(null);
+        if (elegido == null && presentaciones.size() == 1) {
+            elegido = presentaciones.get(0);
+        }
+        cboProducto.getItems().setAll(presentaciones);
+        cboProducto.setValue(elegido);
     }
 
     private void cargarKardex() {
@@ -280,7 +343,7 @@ public class FrmMovimientos extends BorderPane {
         Producto producto = cboProducto.getValue();
         String tipo = cboTipo.getValue();
         if (producto == null) {
-            Ui.mostrarError(ventana(), "Seleccione un producto.");
+            Ui.mostrarError(ventana(), cboNombre.getValue() == null ? "Seleccione un producto." : "Seleccione la presentación.");
             return;
         }
         boolean ajuste = AJUSTE.equals(tipo);

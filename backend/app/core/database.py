@@ -17,6 +17,9 @@ from app.core.config import obtener_configuracion
 
 # Una conexión quieta más de este tiempo se revisa antes de usarla (el pooler pudo cortarla)
 _SEGUNDOS_SIN_REVISAR = 60
+# Espera máxima por una conexión libre: menor que los 15 s del cliente de escritorio, para que
+# el usuario vea "Servidor ocupado, intente nuevamente" en vez de "tardó demasiado en responder"
+_SEGUNDOS_ESPERA_CONEXION = 10
 
 _pool: ConnectionPool | None = None
 
@@ -40,6 +43,7 @@ def abrir_pool() -> None:
         max_size=config.db_pool_max,
         name="dtulia",
         open=False,
+        timeout=_SEGUNDOS_ESPERA_CONEXION,
         check=_revisar_si_estuvo_quieta,
         reset=_marcar_uso,
         kwargs={
@@ -47,9 +51,22 @@ def abrir_pool() -> None:
             # Sin sentencias preparadas: compatible con el Transaction pooler (puerto 6543)
             "prepare_threshold": None,
             "autocommit": True,
+            # Sin esto, abrir una conexión que no contesta bloquea ~21 s (reintentos TCP de Windows)
+            "connect_timeout": 10,
+            # Latido TCP cada 30 s: mantiene viva la ruta de red y, si se corta en silencio,
+            # Windows cierra la conexión en ~1 min en vez de dejarla colgada
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
         },
     )
     _pool.open(wait=False)
+
+
+def estadisticas_pool() -> dict[str, int]:
+    """Estado del pool (conexiones en uso, libres, peticiones esperando…) para el registro."""
+    return _pool.get_stats() if _pool is not None else {}
 
 
 def cerrar_pool() -> None:
