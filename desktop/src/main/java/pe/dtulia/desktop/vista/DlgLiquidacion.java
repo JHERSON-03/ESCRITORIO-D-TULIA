@@ -1,19 +1,23 @@
 package pe.dtulia.desktop.vista;
 
+import javafx.beans.binding.Bindings;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -55,7 +59,7 @@ class DlgLiquidacion extends Stage {
         final Spinner<Integer> regreso = spinner();
         final Spinner<Integer> merma = spinner();
         final TextField motivo = new TextField();
-        final Label diferencia = new Label();
+        final Label diferencia = Ui.insignia("", "neutro");
 
         Fila(ViajeProducto producto) {
             this.producto = producto;
@@ -74,7 +78,15 @@ class DlgLiquidacion extends Stage {
     private final ComboBox<Sede> cboOtraCiudad = new ComboBox<>();
     private final TextArea txtObservacion = new TextArea();
     private final Label lblResumen = new Label();
-    private final Button btnLiquidar = new Button("Liquidar viaje");
+    private final Label lblCaracteres = new Label();
+    private final Label lblLlevado = new Label("0");
+    private final Label lblVendido = new Label("0");
+    private final Label lblRegreso = new Label("0");
+    private final Label lblMerma = new Label("0");
+    private final Label lblDiferencia = new Label("0");
+    private HBox tarjetaDiferencia;
+    private final Button btnLiquidar = Ui.boton("Liquidar viaje", "mdi2c-clipboard-check-outline", "boton-primario");
+    private final ProgressIndicator progreso = new ProgressIndicator();
 
     /**
      * @param destinos ciudades que se pueden agregar como columna (las que no son el almacén)
@@ -103,24 +115,40 @@ class DlgLiquidacion extends Stage {
         raiz.setTop(crearCabecera());
         raiz.setCenter(crearGrilla());
         raiz.setBottom(crearPie());
-        Scene escena = new Scene(raiz, 1080, 640);
+        Scene escena = new Scene(raiz, 1080, 680);
         Ui.aplicarEstilos(escena);
         setScene(escena);
 
+        // Esc cancela (pregunta si ya se escribió algo); Ctrl+Enter liquida
+        Ui.cerrarConEsc(this, this::hayDatos);
+        Ui.atajo(raiz, new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_DOWN), () -> {
+            if (!btnLiquidar.isDisabled()) {
+                liquidar();
+            }
+        });
+
         construirGrilla();
+    }
+
+    /** true si ya se escribió alguna cantidad, motivo u observación. */
+    private boolean hayDatos() {
+        return !txtObservacion.getText().isBlank() || filas.stream().anyMatch(f -> leer(f.regreso) > 0
+                || leer(f.merma) > 0 || !f.motivo.getText().isBlank()
+                || f.vendidos.values().stream().anyMatch(s -> leer(s) > 0));
     }
 
     private VBox crearCabecera() {
         Label info = new Label(String.format("Salió el %s  ·  %d días  ·  Llevó %d unidades en %d %s",
                 FrmViajes.fecha(viaje.fechaSalida()), viaje.dias(), viaje.llevado(), viaje.envios(),
                 viaje.envios() == 1 ? "envío" : "envíos"));
+        info.getStyleClass().add("total-cajas");
         Label ayuda = new Label("Copie lo que el jefe anotó en su hoja. Si vendió en una ciudad a la que no se le "
-                + "envió nada, agréguela como columna.");
-        ayuda.getStyleClass().add("estado");
+                + "envió nada, agréguela como columna.", Ui.icono("mdi2i-information-outline"));
+        ayuda.getStyleClass().add("ayuda");
         ayuda.setWrapText(true);
 
         cboOtraCiudad.setPromptText("Otra ciudad");
-        Button btnAgregar = new Button("Agregar ciudad");
+        Button btnAgregar = Ui.boton("Agregar ciudad", "mdi2m-map-marker-outline");
         btnAgregar.setOnAction(e -> {
             Sede ciudad = cboOtraCiudad.getValue();
             if (ciudad != null && ciudades.putIfAbsent(ciudad.id(), ciudad) == null) {
@@ -131,8 +159,8 @@ class DlgLiquidacion extends Stage {
         HBox.setHgrow(espacio, Priority.ALWAYS);
         HBox fila = new HBox(10, info, espacio, cboOtraCiudad, btnAgregar);
         fila.setAlignment(Pos.CENTER_LEFT);
-        VBox cabecera = Ui.seccion("Liquidación del viaje #" + viaje.id(), fila, ayuda);
-        VBox.setMargin(cabecera, new Insets(0, 0, 10, 0));
+        VBox cabecera = Ui.seccion("Liquidación del viaje #" + viaje.id(), "mdi2c-clipboard-check-outline", fila, ayuda);
+        BorderPane.setMargin(cabecera, new Insets(0, 0, 10, 0));
         return cabecera;
     }
 
@@ -140,6 +168,7 @@ class DlgLiquidacion extends Stage {
         grilla.setHgap(10);
         grilla.setVgap(6);
         grilla.setPadding(new Insets(10));
+        grilla.getStyleClass().add("grilla-liquidacion");
         ScrollPane desplazable = new ScrollPane(grilla);
         desplazable.setFitToWidth(true);
         desplazable.getStyleClass().add("seccion");
@@ -147,23 +176,45 @@ class DlgLiquidacion extends Stage {
     }
 
     private VBox crearPie() {
-        txtObservacion.setPromptText("Observación (obligatoria si la diferencia no es 0): qué pasó con lo que falta o sobra");
+        // Resumen en vivo: lo que salió frente a lo declarado
+        tarjetaDiferencia = Ui.tarjetaResumen("mdi2s-scale-balance", "Diferencia", lblDiferencia, "exito");
+        HBox tarjetas = new HBox(10,
+                Ui.tarjetaResumen("mdi2t-truck-outline", "Llevó", lblLlevado, "vino"),
+                Ui.tarjetaResumen("mdi2c-cash-multiple", "Vendió", lblVendido, "exito"),
+                Ui.tarjetaResumen("mdi2s-store-outline", "Regresó al almacén", lblRegreso, "info"),
+                Ui.tarjetaResumen("mdi2m-minus-circle-outline", "Merma", lblMerma, "aviso"),
+                tarjetaDiferencia);
+
+        txtObservacion.setPromptText("Qué pasó con lo que falta o sobra");
         txtObservacion.setPrefRowCount(2);
         txtObservacion.setWrapText(true);
         txtObservacion.setTextFormatter(new TextFormatter<String>(
                 cambio -> cambio.getControlNewText().length() <= 300 ? cambio : null));
-        lblResumen.getStyleClass().add("cliente");
+        Label lblObservacion = new Label("Observación (obligatoria si la diferencia no es 0)");
+        lblObservacion.getStyleClass().add("etiqueta-filtro");
+        lblCaracteres.getStyleClass().add("estado");
+        lblCaracteres.textProperty().bind(Bindings.createStringBinding(
+                () -> txtObservacion.getLength() + "/300 caracteres", txtObservacion.textProperty()));
+        Region espacioObs = new Region();
+        HBox.setHgrow(espacioObs, Priority.ALWAYS);
+        HBox encabezadoObs = new HBox(lblObservacion, espacioObs, lblCaracteres);
+        lblResumen.getStyleClass().add("total-cajas");
 
         Button btnCancelar = new Button("Cancelar");
+        btnCancelar.setTooltip(new Tooltip("Esc"));
         btnCancelar.setOnAction(e -> close());
-        btnLiquidar.getStyleClass().add("boton-primario");
+        btnLiquidar.setTooltip(new Tooltip("Ctrl+Enter"));
         btnLiquidar.setOnAction(e -> liquidar());
+        progreso.setPrefSize(16, 16);
+        progreso.setMaxSize(16, 16);
+        Label aviso = new Label("Lo que regresó vuelve al stock del almacén al liquidar.", Ui.icono("mdi2i-information-outline"));
+        aviso.getStyleClass().add("ayuda");
         Region espacio = new Region();
         HBox.setHgrow(espacio, Priority.ALWAYS);
-        HBox botones = new HBox(12, lblResumen, espacio, btnCancelar, btnLiquidar);
+        HBox botones = new HBox(12, aviso, espacio, lblResumen, btnCancelar, btnLiquidar);
         botones.setAlignment(Pos.CENTER_RIGHT);
 
-        VBox pie = new VBox(8, txtObservacion, botones);
+        VBox pie = new VBox(8, tarjetas, encabezadoObs, txtObservacion, botones);
         pie.setPadding(new Insets(10, 0, 0, 0));
         return pie;
     }
@@ -239,8 +290,8 @@ class DlgLiquidacion extends Stage {
                     .filter(e -> ciudades.containsKey(e.getKey()))
                     .mapToInt(e -> leer(e.getValue())).sum();
             int dif = f.producto.llevado() - vendidoFila - leer(f.regreso) - leer(f.merma);
-            f.diferencia.getStyleClass().removeAll("texto-alerta", "texto-ok");
-            f.diferencia.getStyleClass().add(dif == 0 ? "texto-ok" : "texto-alerta");
+            f.diferencia.getStyleClass().removeAll("insignia-neutro", "insignia-exito", "insignia-peligro");
+            f.diferencia.getStyleClass().add(dif == 0 ? "insignia-exito" : "insignia-peligro");
             f.diferencia.setText(dif == 0 ? "0 ✓" : dif > 0 ? "Faltan " + dif : "Sobran " + (-dif));
             llevado += f.producto.llevado();
             vendido += vendidoFila;
@@ -250,9 +301,18 @@ class DlgLiquidacion extends Stage {
                 conDiferencia++;
             }
         }
-        lblResumen.setText(String.format("Llevó %d  ·  Vendió %d  ·  Regresó %d  ·  Merma %d  ·  %s", llevado,
-                vendido, regreso, merma, conDiferencia == 0 ? "Cuadra ✓"
-                        : conDiferencia + (conDiferencia == 1 ? " producto con diferencia" : " productos con diferencia")));
+        lblResumen.setText(conDiferencia == 0 ? "Cuadra ✓"
+                : conDiferencia + (conDiferencia == 1 ? " producto con diferencia" : " productos con diferencia"));
+        int diferencia = llevado - vendido - regreso - merma;
+        lblLlevado.setText(String.valueOf(llevado));
+        lblVendido.setText(String.valueOf(vendido));
+        lblRegreso.setText(String.valueOf(regreso));
+        lblMerma.setText(String.valueOf(merma));
+        lblDiferencia.setText(diferencia == 0 ? "0 ✓" : diferencia > 0 ? "Faltan " + diferencia : "Sobran " + (-diferencia));
+        if (tarjetaDiferencia != null) {
+            tarjetaDiferencia.getStyleClass().removeAll("tono-exito", "tono-peligro");
+            tarjetaDiferencia.getStyleClass().add(conDiferencia == 0 ? "tono-exito" : "tono-peligro");
+        }
     }
 
     private void liquidar() {
@@ -296,25 +356,28 @@ class DlgLiquidacion extends Stage {
             return;
         }
 
-        Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION,
+        if (!Ui.confirmar(this, "¿Liquidar el viaje #" + viaje.id() + "?" + (hayDiferencia ? " (con diferencia)" : ""),
                 "Lo que regresó volverá al stock del almacén y el viaje quedará cerrado: después no se podrá modificar.",
-                ButtonType.YES, ButtonType.NO);
-        confirmacion.initOwner(this);
-        confirmacion.setHeaderText("¿Liquidar el viaje #" + viaje.id() + "?" + (hayDiferencia ? " (con diferencia)" : ""));
-        if (confirmacion.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) {
+                "Liquidar viaje")) {
             return;
         }
 
-        btnLiquidar.setDisable(true);
+        ocupado(true);
         Ui.alCompletar(liquidar.apply(new LiquidacionSolicitud(ventas, retornos, observacion.isEmpty() ? null : observacion)),
                 detalle -> {
                     close();
                     alLiquidar.accept(detalle);
                 },
                 mensaje -> {
-                    btnLiquidar.setDisable(false);
+                    ocupado(false);
                     Ui.mostrarError(this, mensaje);
                 });
+    }
+
+    private void ocupado(boolean ocupado) {
+        btnLiquidar.setDisable(ocupado);
+        btnLiquidar.setText(ocupado ? "Liquidando…" : "Liquidar viaje");
+        btnLiquidar.setGraphic(ocupado ? progreso : Ui.icono("mdi2c-clipboard-check-outline"));
     }
 
     /** Lectura tolerante para el cálculo en vivo (texto vacío o inválido = 0). */

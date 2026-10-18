@@ -5,10 +5,15 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.geometry.HPos;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -21,14 +26,18 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
+import org.kordamp.ikonli.javafx.FontIcon;
 import pe.dtulia.desktop.modelo.Cliente;
 import pe.dtulia.desktop.modelo.ClienteNuevo;
 import pe.dtulia.desktop.modelo.ItemVenta;
@@ -80,8 +89,8 @@ public class FrmVentas extends BorderPane {
     private final ComboBox<MetodoPago> cboMetodo = new ComboBox<>();
     private final ComboBox<String> cboCanal = new ComboBox<>();
     private final TextField txtDocumento = new TextField();
-    private final Button btnBuscarCliente = new Button("Buscar");
-    private final Label lblCliente = new Label(CLIENTES_VARIOS);
+    private final Button btnBuscarCliente = Ui.boton("Buscar", "mdi2a-account-search-outline");
+    private final Label lblCliente = new Label(CLIENTES_VARIOS, Ui.icono("mdi2a-account-outline"));
 
     private final TextField txtBuscar = new TextField();
     private final HBox botonesTipo = new HBox(6);
@@ -90,6 +99,7 @@ public class FrmVentas extends BorderPane {
     private final FilteredList<FilaLicor> filasVisibles = new FilteredList<>(filas);
     private final TableView<FilaLicor> tablaProductos = new TableView<>(filasVisibles);
     private final Label lblSeleccionado = new Label();
+    private final HBox cajaSeleccion = new HBox(8);
     private final CampoCajas campoCajas = new CampoCajas();
     private Producto seleccionado;
 
@@ -98,7 +108,8 @@ public class FrmVentas extends BorderPane {
     private final Label lblSubtotal = new Label();
     private final Label lblIgv = new Label();
     private final Label lblTotal = new Label();
-    private final Button btnEmitir = new Button("Emitir comprobante");
+    private final Button btnEmitir = Ui.boton("Emitir comprobante", "mdi2r-receipt", "boton-primario", "boton-grande");
+    private final ProgressIndicator progresoEmision = new ProgressIndicator();
 
     private Cliente cliente; // null = CLIENTES VARIOS
 
@@ -109,15 +120,29 @@ public class FrmVentas extends BorderPane {
 
         // Izquierda: elegir productos (toda la altura). Derecha: el "ticket" (comprobante, pedido y totales)
         VBox ticket = new VBox(10, crearDatosComprobante(), crearPedido());
-        SplitPane columnas = new SplitPane(crearEleccion(), ticket);
+        ticket.setMinWidth(320);
+        ScrollPane panelTicket = Ui.desplazable(ticket);
+        SplitPane columnas = new SplitPane(Ui.desplazable(crearEleccion()), panelTicket);
         columnas.getStyleClass().add("columnas");
         columnas.setDividerPositions(0.6);
-        SplitPane.setResizableWithParent(ticket, false);
+        SplitPane.setResizableWithParent(panelTicket, false);
         setCenter(columnas);
 
         carrito.addListener((ListChangeListener<LineaVenta>) c -> actualizarTotales());
         cboTipo.valueProperty().addListener((obs, antes, ahora) -> actualizarTotales());
         txtBuscar.textProperty().addListener((obs, antes, ahora) -> aplicarFiltro());
+
+        // Atajos: F2 busca, Ctrl+Enter emite (Enter agrega: lo atienden la tabla y la cantidad)
+        Ui.atajo(this, new KeyCodeCombination(KeyCode.F2), () -> {
+            txtBuscar.requestFocus();
+            txtBuscar.selectAll();
+        });
+        Ui.atajo(this, new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_DOWN), () -> {
+            if (!btnEmitir.isDisabled()) {
+                emitir();
+            }
+        });
+
         actualizarTotales();
         seleccionar(null);
         cargarCatalogos();
@@ -135,34 +160,51 @@ public class FrmVentas extends BorderPane {
         btnBuscarCliente.setOnAction(e -> buscarCliente());
         lblCliente.getStyleClass().add("cliente");
 
-        // Una sola columna de campos: entra en el ancho del ticket
+        // Comprobante, pago y canal en una fila (etiqueta arriba) para que el ticket entre sin desplazarse
         GridPane grilla = new GridPane();
-        grilla.setHgap(10);
-        grilla.setVgap(8);
-        grilla.addRow(0, new Label("Comprobante"), cboTipo);
-        grilla.addRow(1, new Label("Pago"), cboMetodo);
-        grilla.addRow(2, new Label("Canal"), cboCanal);
-        grilla.addRow(3, new Label("Cliente"), new HBox(6, txtDocumento, btnBuscarCliente));
-        grilla.add(lblCliente, 1, 4);
-        ColumnConstraints etiqueta = new ColumnConstraints();
-        ColumnConstraints campo = new ColumnConstraints(180, 260, Double.MAX_VALUE);
-        campo.setHgrow(Priority.ALWAYS);
-        grilla.getColumnConstraints().setAll(etiqueta, campo);
+        grilla.setHgap(8);
+        grilla.setVgap(4);
+        grilla.addRow(0, etiqueta("Comprobante"), etiqueta("Pago"), etiqueta("Canal"));
+        grilla.addRow(1, cboTipo, cboMetodo, cboCanal);
+        for (int i = 0; i < 3; i++) {
+            ColumnConstraints columna = new ColumnConstraints(90, 120, Double.MAX_VALUE);
+            columna.setHgrow(Priority.ALWAYS);
+            grilla.getColumnConstraints().add(columna);
+        }
+        HBox filaCliente = new HBox(6, txtDocumento, btnBuscarCliente);
+        VBox cliente = new VBox(4, etiqueta("Cliente"), filaCliente, lblCliente);
 
-        return Ui.seccion("Comprobante", grilla);
+        return Ui.seccion("Comprobante", "mdi2r-receipt", grilla, cliente);
+    }
+
+    private static Label etiqueta(String texto) {
+        Label etiqueta = new Label(texto);
+        etiqueta.getStyleClass().add("etiqueta-filtro");
+        return etiqueta;
     }
 
     /** Tabla de precios y stock: clic en una celda la elige; doble clic o Enter la agrega. */
     private VBox crearEleccion() {
-        txtBuscar.setPromptText("Buscar licor…");
-        txtBuscar.setPrefWidth(200);
-        Button btnActualizar = new Button("Actualizar");
+        txtBuscar.setPromptText("Buscar licor…  (F2)");
+        txtBuscar.setPrefWidth(190);
+        txtBuscar.setMinWidth(130);
+        StackPane buscador = new StackPane(txtBuscar);
+        FontIcon lupa = Ui.icono("mdi2m-magnify");
+        lupa.setMouseTransparent(true);
+        buscador.getChildren().add(lupa);
+        StackPane.setAlignment(lupa, Pos.CENTER_LEFT);
+        StackPane.setMargin(lupa, new Insets(0, 0, 0, 10));
+        buscador.getStyleClass().add("buscador");
+        Button btnActualizar = Ui.boton(null, "mdi2r-refresh");
+        btnActualizar.setTooltip(new Tooltip("Actualizar precios y stock"));
+        btnActualizar.setMinWidth(Region.USE_PREF_SIZE);
         btnActualizar.setOnAction(e -> cargarProductos());
         botonesTipo.setAlignment(Pos.CENTER_LEFT);
         Region espacio = new Region();
         HBox.setHgrow(espacio, Priority.ALWAYS);
-        HBox barra = new HBox(12, txtBuscar, botonesTipo, espacio, btnActualizar);
+        HBox barra = new HBox(12, buscador, botonesTipo, espacio, btnActualizar);
         barra.setAlignment(Pos.CENTER_LEFT);
+        tablaProductos.getStyleClass().add("tabla-precios");
 
         tablaProductos.getSelectionModel().setCellSelectionEnabled(true);
         tablaProductos.getSelectionModel().getSelectedCells()
@@ -177,24 +219,30 @@ public class FrmVentas extends BorderPane {
                 agregarProducto();
             }
         });
-        tablaProductos.setPlaceholder(new Label("Cargando productos…"));
+        tablaProductos.setPlaceholder(Ui.cargando("Cargando productos…"));
         tablaProductos.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        tablaProductos.setMinHeight(160);
         VBox.setVgrow(tablaProductos, Priority.ALWAYS);
 
         lblSeleccionado.getStyleClass().add("cliente");
         lblSeleccionado.setWrapText(true);
         lblSeleccionado.setMaxWidth(Double.MAX_VALUE);
+        cajaSeleccion.getChildren().setAll(Ui.icono("mdi2b-bottle-wine-outline"), lblSeleccionado);
+        cajaSeleccion.setAlignment(Pos.CENTER_LEFT);
+        cajaSeleccion.getStyleClass().add("seleccion-producto");
         campoCajas.setAlConfirmar(this::agregarProducto);
-        Button btnAgregar = new Button("Agregar");
-        btnAgregar.getStyleClass().add("boton-primario");
+        Button btnAgregar = Ui.boton("Agregar", "mdi2c-cart-plus", "boton-primario");
+        btnAgregar.setTooltip(new Tooltip("Enter"));
         btnAgregar.setOnAction(e -> agregarProducto());
         HBox filaCantidad = new HBox(10, campoCajas, btnAgregar);
         filaCantidad.setAlignment(Pos.CENTER_LEFT);
 
-        Label ayuda = new Label("Haga clic en el precio del tamaño que quiere vender. Doble clic o Enter lo agrega.");
-        ayuda.getStyleClass().add("estado");
+        Label ayuda = new Label("Clic en un precio para elegirlo · Enter o doble clic lo agrega · "
+                + "Ctrl+Enter emite · F2 busca", Ui.icono("mdi2k-keyboard-outline"));
+        ayuda.getStyleClass().add("ayuda");
         ayuda.setWrapText(true);
-        VBox eleccion = Ui.seccion("Elegir producto", barra, tablaProductos, ayuda, lblSeleccionado, filaCantidad);
+        VBox eleccion = Ui.seccion("Elegir producto", "mdi2b-bottle-wine-outline", barra, tablaProductos, ayuda,
+                cajaSeleccion, filaCantidad);
         eleccion.setMinWidth(420);
         return eleccion;
     }
@@ -214,36 +262,65 @@ public class FrmVentas extends BorderPane {
                         : new Tooltip(Ui.soles(linea.producto().precio()) + " c/u × " + linea.cantidad()));
             }
         });
-        tablaCarrito.setPlaceholder(new Label("Agregue productos a la venta"));
+        tablaCarrito.setPlaceholder(Ui.estadoVacio("mdi2c-cart-outline", "El pedido está vacío",
+                "Elija un precio en la tabla y presione Enter para agregarlo."));
         tablaCarrito.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        tablaCarrito.setMinHeight(100);
+        tablaCarrito.setPrefHeight(150);
         VBox.setVgrow(tablaCarrito, Priority.ALWAYS);
 
-        Button btnQuitar = new Button("Quitar seleccionado");
-        btnQuitar.setOnAction(e -> {
+        Runnable quitar = () -> {
             LineaVenta linea = tablaCarrito.getSelectionModel().getSelectedItem();
             if (linea != null) {
                 carrito.remove(linea);
             }
+        };
+        tablaCarrito.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.DELETE) {
+                quitar.run();
+            }
         });
-        Button btnLimpiar = new Button("Limpiar");
-        btnLimpiar.setOnAction(e -> limpiar());
+        Button btnQuitar = Ui.boton("Quitar", "mdi2d-delete-outline");
+        btnQuitar.setTooltip(new Tooltip("Quitar la línea seleccionada (Supr)"));
+        btnQuitar.disableProperty().bind(tablaCarrito.getSelectionModel().selectedItemProperty().isNull());
+        btnQuitar.setOnAction(e -> quitar.run());
+        Button btnLimpiar = Ui.boton("Limpiar", "mdi2b-broom");
+        btnLimpiar.setOnAction(e -> {
+            if (carrito.isEmpty() || Ui.confirmar(ventana(), "¿Limpiar la venta?",
+                    "Se quitarán los " + carrito.size() + " productos del pedido y el cliente elegido.", "Limpiar")) {
+                limpiar();
+            }
+        });
         Region espacio = new Region();
         HBox.setHgrow(espacio, Priority.ALWAYS);
         HBox acciones = new HBox(10, btnQuitar, espacio, btnLimpiar);
 
         lblTotal.getStyleClass().add("total");
+        lblSubtotal.getStyleClass().add("importe");
+        lblIgv.getStyleClass().add("importe");
+        Label etiquetaTotal = new Label("TOTAL A PAGAR");
+        etiquetaTotal.getStyleClass().add("etiqueta-total");
         GridPane importes = new GridPane();
         importes.setHgap(12);
+        importes.setVgap(2);
         importes.addRow(0, new Label("Op. gravada"), lblSubtotal);
         importes.addRow(1, new Label("IGV"), lblIgv);
-        importes.addRow(2, new Label("Total"), lblTotal);
-        importes.setAlignment(Pos.CENTER_RIGHT);
+        importes.addRow(2, etiquetaTotal, lblTotal);
+        ColumnConstraints colEtiqueta = new ColumnConstraints();
+        colEtiqueta.setHgrow(Priority.ALWAYS);
+        ColumnConstraints colImporte = new ColumnConstraints();
+        colImporte.setHalignment(HPos.RIGHT);
+        importes.getColumnConstraints().setAll(colEtiqueta, colImporte);
+        GridPane.setValignment(etiquetaTotal, VPos.CENTER);
+        importes.getStyleClass().add("totales");
 
-        btnEmitir.getStyleClass().add("boton-primario");
+        progresoEmision.setPrefSize(18, 18);
+        progresoEmision.setMaxSize(18, 18);
         btnEmitir.setMaxWidth(Double.MAX_VALUE);
+        btnEmitir.setTooltip(new Tooltip("Ctrl+Enter"));
         btnEmitir.setOnAction(e -> emitir());
 
-        VBox pedido = Ui.seccion("Pedido", tablaCarrito, acciones, importes, btnEmitir);
+        VBox pedido = Ui.seccion("Pedido", "mdi2c-cart-outline", tablaCarrito, acciones, importes, btnEmitir);
         pedido.setMinWidth(320);
         VBox.setVgrow(pedido, Priority.ALWAYS);
         return pedido;
@@ -307,8 +384,25 @@ public class FrmVentas extends BorderPane {
         productos.stream().sorted(Comparator.comparingLong(Producto::presentacionId))
                 .forEach(p -> presentaciones.putIfAbsent(p.presentacionId(), p.presentacion()));
         List<TableColumn<FilaLicor, ?>> columnas = new ArrayList<>();
-        TableColumn<FilaLicor, String> colNombre = new TableColumn<>("Producto");
-        colNombre.setCellValueFactory(d -> new ReadOnlyObjectWrapper<>(d.getValue().nombre()));
+        TableColumn<FilaLicor, FilaLicor> colNombre = new TableColumn<>("Producto");
+        colNombre.setCellValueFactory(d -> new ReadOnlyObjectWrapper<>(d.getValue()));
+        // Nombre en negrita y el tipo debajo
+        colNombre.setCellFactory(c -> new TableCell<>() {
+            @Override
+            protected void updateItem(FilaLicor fila, boolean vacio) {
+                super.updateItem(fila, vacio);
+                setText(null);
+                if (vacio || fila == null) {
+                    setGraphic(null);
+                    return;
+                }
+                Label nombre = new Label(fila.nombre());
+                nombre.getStyleClass().add("nombre-celda");
+                Label tipo = new Label(fila.tipo());
+                tipo.getStyleClass().add("detalle-celda");
+                setGraphic(new VBox(0, nombre, tipo));
+            }
+        });
         colNombre.setPrefWidth(170);
         colNombre.setSortable(false);
         columnas.add(colNombre);
@@ -340,7 +434,7 @@ public class FrmVentas extends BorderPane {
         }
     }
 
-    /** Celda "S/ 15.00 · 12" (precio por unidad · stock); apagada si no hay stock o no tiene precio. */
+    /** Celda con el precio por unidad y debajo el stock; apagada si no hay stock o no tiene precio. */
     private TableColumn<FilaLicor, Producto> columnaPresentacion(long presentacionId, String nombre) {
         TableColumn<FilaLicor, Producto> columna = new TableColumn<>(nombre);
         columna.setCellValueFactory(d -> new ReadOnlyObjectWrapper<>(d.getValue().presentaciones().get(presentacionId)));
@@ -349,6 +443,7 @@ public class FrmVentas extends BorderPane {
             protected void updateItem(Producto p, boolean vacio) {
                 super.updateItem(p, vacio);
                 getStyleClass().remove("celda-apagada");
+                setGraphic(null);
                 if (vacio) {
                     setText(null);
                     return;
@@ -360,7 +455,14 @@ public class FrmVentas extends BorderPane {
                     setText("Sin precio · " + p.stock());
                     getStyleClass().add("celda-apagada");
                 } else {
-                    setText(Ui.soles(p.precio()) + " · " + p.stock());
+                    setText(null);
+                    Label precio = new Label(Ui.soles(p.precio()));
+                    precio.getStyleClass().add("precio-celda");
+                    Label stock = new Label(p.stock() + " disp.");
+                    stock.getStyleClass().add("stock-celda");
+                    VBox caja = new VBox(0, precio, stock);
+                    caja.setAlignment(Pos.CENTER);
+                    setGraphic(caja);
                 }
             }
         });
@@ -389,6 +491,7 @@ public class FrmVentas extends BorderPane {
 
     private ToggleButton botonTipo(String texto, String tipo) {
         ToggleButton boton = new ToggleButton(texto);
+        boton.setMinWidth(Region.USE_PREF_SIZE);
         boton.setUserData(tipo);
         boton.getStyleClass().add("filtro-tipo");
         boton.setToggleGroup(grupoTipo);
@@ -409,8 +512,11 @@ public class FrmVentas extends BorderPane {
         filasVisibles.setPredicate(f -> f.tieneStock()
                 && (tipo == null || tipo.equals(f.tipo()))
                 && (texto.isEmpty() || f.nombre().toLowerCase(Locale.ROOT).contains(texto)));
-        tablaProductos.setPlaceholder(new Label(filas.stream().anyMatch(FilaLicor::tieneStock)
-                ? "Ningún producto coincide con la búsqueda" : "No hay productos con stock en el almacén"));
+        tablaProductos.setPlaceholder(filas.stream().anyMatch(FilaLicor::tieneStock)
+                ? Ui.estadoVacio("mdi2m-magnify", "Ningún producto coincide con la búsqueda",
+                        "Borre el texto buscado o elija \"Todos\".")
+                : Ui.estadoVacio("mdi2p-package-variant", "No hay productos con stock en el almacén",
+                        "Registre una entrada en Movimientos de stock o reciba un envío de la fábrica."));
     }
 
     // ------------------------------------------------------------------ acciones
@@ -429,8 +535,10 @@ public class FrmVentas extends BorderPane {
     private void seleccionar(Producto producto) {
         seleccionado = producto;
         campoCajas.setProducto(producto);
+        cajaSeleccion.getStyleClass().remove("vacia");
         if (producto == null) {
-            lblSeleccionado.setText("Ningún producto elegido");
+            lblSeleccionado.setText("Ningún producto elegido: haga clic en un precio de la tabla");
+            cajaSeleccion.getStyleClass().add("vacia");
             return;
         }
         campoCajas.setUnidades(1);
@@ -466,6 +574,7 @@ public class FrmVentas extends BorderPane {
 
     private void ofrecerRegistro(String documento) {
         TextInputDialog dialogo = new TextInputDialog();
+        Ui.aplicarEstilos(dialogo);
         dialogo.initOwner(ventana());
         dialogo.setTitle("Cliente no registrado");
         dialogo.setHeaderText("No existe un cliente con el documento " + documento + ".");
@@ -551,12 +660,12 @@ public class FrmVentas extends BorderPane {
 
         btnEmitir.setDisable(true);
         btnEmitir.setText("Emitiendo…");
+        btnEmitir.setGraphic(progresoEmision);
         Ui.alCompletar(servicios.ventas().emitirComprobante(solicitud),
                 comprobante -> {
                     restaurarBoton();
-                    Ui.mostrarInfo(ventana(), "Venta registrada",
-                            comprobante.tipoComprobante() + " " + comprobante.numeroCompleto()
-                                    + "\nTotal: " + Ui.soles(comprobante.total()));
+                    Ui.toast(this, "Venta registrada · " + comprobante.tipoComprobante() + " "
+                            + comprobante.numeroCompleto() + " · Total " + Ui.soles(comprobante.total()));
                     limpiar();
                     cargarProductos();
                     alRegistrarVenta.run();
@@ -601,6 +710,7 @@ public class FrmVentas extends BorderPane {
     private void restaurarBoton() {
         btnEmitir.setDisable(false);
         btnEmitir.setText("Emitir comprobante");
+        btnEmitir.setGraphic(Ui.icono("mdi2r-receipt"));
     }
 
     private Window ventana() {

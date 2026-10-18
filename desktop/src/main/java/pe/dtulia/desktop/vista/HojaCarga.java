@@ -1,6 +1,7 @@
 package pe.dtulia.desktop.vista;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.print.PageLayout;
 import javafx.print.PrinterJob;
 import javafx.scene.Group;
@@ -35,8 +36,6 @@ import java.util.Map;
 final class HojaCarga {
 
     private static final DateTimeFormatter IMPRESO = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-    private static final String CELDA = "-fx-border-color: #444; -fx-border-width: 0 1 1 0; -fx-padding: 4 5;";
-    private static final String ENCABEZADO = CELDA + "-fx-font-weight: bold; -fx-background-color: #e6e6e6;";
 
     private HojaCarga() {
     }
@@ -53,8 +52,8 @@ final class HojaCarga {
         PageLayout pagina = trabajo.getJobSettings().getPageLayout();
         VBox hoja = construir(detalle, pagina.getPrintableWidth());
 
-        // Fuera de pantalla: se aplica CSS y se calcula el tamaño antes de imprimir
-        new Scene(new Group(hoja));
+        // Fuera de pantalla: se aplica CSS (clases .hoja-*) y se calcula el tamaño antes de imprimir
+        Ui.aplicarEstilos(new Scene(new Group(hoja)));
         hoja.applyCss();
         hoja.layout();
         double alto = hoja.prefHeight(pagina.getPrintableWidth());
@@ -75,14 +74,28 @@ final class HojaCarga {
         ViajeResumen viaje = detalle.viaje();
         boolean abierto = viaje.abierto();
 
-        Label titulo = new Label(abierto ? "D'TULIA · HOJA DE CARGA · VIAJE #" + viaje.id()
-                : "D'TULIA · LIQUIDACIÓN DEL VIAJE #" + viaje.id());
-        titulo.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
+        // Encabezado: marca a la izquierda, tipo de hoja y número de viaje a la derecha
+        Label marca = new Label("D'TULIA");
+        marca.getStyleClass().add("hoja-marca");
+        Label submarca = new Label("Control de inventario y ventas · Almacén");
+        submarca.getStyleClass().add("hoja-tenue");
+        Label titulo = new Label(abierto ? "HOJA DE CARGA" : "LIQUIDACIÓN DEL VIAJE");
+        titulo.getStyleClass().add("hoja-titulo");
+        Label numero = new Label("VIAJE #" + viaje.id());
+        numero.getStyleClass().add("hoja-numero");
+        VBox izquierda = new VBox(1, marca, submarca);
+        VBox derecha = new VBox(1, titulo, numero);
+        derecha.setAlignment(Pos.TOP_RIGHT);
+        Region separador = new Region();
+        HBox.setHgrow(separador, Priority.ALWAYS);
+        HBox encabezado = new HBox(izquierda, separador, derecha);
+        encabezado.getStyleClass().add("hoja-encabezado-pagina");
+
         Label datos = new Label(String.format("Salida: %s   ·   Ciudades: %s   ·   %s", FrmViajes.fecha(viaje.fechaSalida()),
                 viaje.ciudades() == null ? "—" : viaje.ciudades(),
                 abierto ? viaje.dias() + " días fuera" : "Liquidado el " + FrmViajes.fecha(viaje.fechaLiquidacion())));
         Label impreso = new Label("Impreso: " + LocalDateTime.now().format(IMPRESO));
-        impreso.setStyle("-fx-text-fill: #555;");
+        impreso.getStyleClass().add("hoja-tenue");
 
         VBox envios = new VBox(2);
         for (Envio envio : detalle.envios()) {
@@ -95,7 +108,7 @@ final class HojaCarga {
             }
         }
 
-        VBox hoja = new VBox(8, titulo, datos, impreso, envios, tabla(detalle, abierto));
+        VBox hoja = new VBox(8, encabezado, datos, impreso, envios, tabla(detalle, abierto));
         if (!abierto && viaje.observacion() != null) {
             hoja.getChildren().add(new Label("Observación: " + viaje.observacion()));
         }
@@ -103,7 +116,7 @@ final class HojaCarga {
         hoja.setPrefWidth(ancho);
         hoja.setMaxWidth(ancho);
         hoja.setPadding(new Insets(4));
-        hoja.setStyle("-fx-background-color: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 10px;");
+        hoja.getStyleClass().add("hoja-carga");
         return hoja;
     }
 
@@ -122,9 +135,9 @@ final class HojaCarga {
         encabezados.add("Merma /\nregalo");
 
         GridPane grilla = new GridPane();
-        grilla.setStyle("-fx-border-color: #444; -fx-border-width: 1 0 0 1;");
+        grilla.getStyleClass().add("hoja-tabla");
         for (int c = 0; c < encabezados.size(); c++) {
-            grilla.add(celda(encabezados.get(c), ENCABEZADO), c, 0);
+            grilla.add(celda(encabezados.get(c), "hoja-encabezado"), c, 0);
         }
         int fila = 1;
         for (ViajeProducto p : detalle.productos()) {
@@ -142,7 +155,7 @@ final class HojaCarga {
             valores.add(abierto ? "" : String.valueOf(p.devuelto()));
             valores.add(abierto ? "" : p.merma() + (p.motivoMerma() == null ? "" : " (" + p.motivoMerma() + ")"));
             for (int c = 0; c < valores.size(); c++) {
-                grilla.add(celda(valores.get(c), CELDA + "-fx-min-height: 24px;"), c, fila);
+                grilla.add(celda(valores.get(c), "hoja-fila"), c, fila);
             }
             fila++;
         }
@@ -165,9 +178,9 @@ final class HojaCarga {
                 .mapToInt(VentaCiudad::cantidad).sum();
     }
 
-    private static Label celda(String texto, String estilo) {
+    private static Label celda(String texto, String clase) {
         Label etiqueta = new Label(texto);
-        etiqueta.setStyle(estilo);
+        etiqueta.getStyleClass().addAll("hoja-celda", clase);
         etiqueta.setWrapText(true);
         etiqueta.setMaxWidth(Double.MAX_VALUE);
         etiqueta.setMaxHeight(Double.MAX_VALUE);

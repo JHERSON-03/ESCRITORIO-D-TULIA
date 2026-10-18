@@ -7,7 +7,12 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -44,8 +49,10 @@ class DlgEnvio extends Stage {
     private final TextField txtReferencia = new TextField();
     private final SelectorProductos selector =
             new SelectorProductos(true, "Agregue los productos que salen del almacén");
-    private final Label lblTotal = new Label();
+    private final Label lblTotal = Ui.insignia("", "vino");
     private final Button btnRegistrar;
+    private final String textoBoton;
+    private final ProgressIndicator progreso = new ProgressIndicator();
 
     /**
      * @param ciudadSugerida ciudad elegida al abrir (la del último envío) o null
@@ -57,7 +64,8 @@ class DlgEnvio extends Stage {
         this.ciudadSugerida = ciudadSugerida;
         this.registrar = registrar;
         this.alRegistrar = alRegistrar;
-        this.btnRegistrar = new Button(textoBoton);
+        this.textoBoton = textoBoton;
+        this.btnRegistrar = Ui.boton(textoBoton, "mdi2c-check", "boton-primario");
 
         initOwner(duenio);
         initModality(Modality.WINDOW_MODAL);
@@ -67,9 +75,17 @@ class DlgEnvio extends Stage {
         raiz.setTop(crearDatos(titulo));
         raiz.setCenter(crearDetalle());
         raiz.setBottom(crearPie());
-        Scene escena = new Scene(raiz, 860, 580);
+        Scene escena = new Scene(raiz, 900, 620);
         Ui.aplicarEstilos(escena);
         setScene(escena);
+
+        // Esc cierra (pregunta si ya hay productos); Ctrl+Enter registra
+        Ui.cerrarConEsc(this, () -> !selector.lineas().isEmpty());
+        Ui.atajo(raiz, new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_DOWN), () -> {
+            if (!btnRegistrar.isDisabled()) {
+                registrar();
+            }
+        });
 
         selector.lineas().addListener((ListChangeListener<SelectorProductos.Linea>) c -> actualizarTotal());
         actualizarTotal();
@@ -85,16 +101,25 @@ class DlgEnvio extends Stage {
         GridPane grilla = new GridPane();
         grilla.setHgap(10);
         grilla.setVgap(8);
-        grilla.addRow(0, new Label("Ciudad"), cboCiudad, new Label("Referencia"), txtReferencia);
+        grilla.addRow(0, etiqueta("Ciudad"), cboCiudad, etiqueta("Referencia"), txtReferencia);
         ColumnConstraints etiqueta = new ColumnConstraints();
         ColumnConstraints campo = new ColumnConstraints(180, 240, Double.MAX_VALUE);
         campo.setHgrow(Priority.ALWAYS);
         grilla.getColumnConstraints().setAll(etiqueta, campo, etiqueta, campo);
-        return Ui.seccion(titulo, grilla);
+        return Ui.seccion(titulo, "mdi2t-truck-delivery-outline", grilla);
+    }
+
+    private static Label etiqueta(String texto) {
+        Label etiqueta = new Label(texto);
+        etiqueta.getStyleClass().add("etiqueta-filtro");
+        return etiqueta;
     }
 
     private VBox crearDetalle() {
-        VBox detalle = Ui.seccion("Productos", selector);
+        Label aviso = new Label("Al registrar, estas unidades salen del stock del almacén (movimiento SALIDA_VIAJE).",
+                Ui.icono("mdi2i-information-outline"));
+        aviso.getStyleClass().add("ayuda");
+        VBox detalle = Ui.seccion("Productos", "mdi2b-bottle-wine-outline", selector, aviso);
         VBox.setVgrow(selector, Priority.ALWAYS);
         VBox.setVgrow(detalle, Priority.ALWAYS);
         VBox contenedor = new VBox(detalle);
@@ -104,14 +129,19 @@ class DlgEnvio extends Stage {
 
     private HBox crearPie() {
         Button btnCancelar = new Button("Cancelar");
+        btnCancelar.setTooltip(new Tooltip("Esc"));
         btnCancelar.setOnAction(e -> close());
-        btnRegistrar.getStyleClass().add("boton-primario");
+        btnRegistrar.setTooltip(new Tooltip("Ctrl+Enter"));
         btnRegistrar.setOnAction(e -> registrar());
-        lblTotal.getStyleClass().add("cliente");
+        progreso.setPrefSize(16, 16);
+        progreso.setMaxSize(16, 16);
+        Label atajos = new Label("Enter agrega · Supr quita · Ctrl+Enter registra · Esc cierra",
+                Ui.icono("mdi2k-keyboard-outline"));
+        atajos.getStyleClass().add("ayuda");
 
         Region espacio = new Region();
         HBox.setHgrow(espacio, Priority.ALWAYS);
-        HBox pie = new HBox(12, espacio, lblTotal, btnCancelar, btnRegistrar);
+        HBox pie = new HBox(12, atajos, espacio, lblTotal, btnCancelar, btnRegistrar);
         pie.setAlignment(Pos.CENTER_RIGHT);
         return pie;
     }
@@ -143,16 +173,22 @@ class DlgEnvio extends Stage {
         EnvioSolicitud solicitud = new EnvioSolicitud(ciudad.id(), referencia.isEmpty() ? null : referencia,
                 selector.lineas().stream().map(l -> new ItemViaje(l.producto().id(), l.cantidad())).toList());
 
-        btnRegistrar.setDisable(true);
+        ocupado(true);
         Ui.alCompletar(registrar.apply(solicitud),
                 detalle -> {
                     close();
                     alRegistrar.accept(detalle);
                 },
                 mensaje -> {
-                    btnRegistrar.setDisable(false);
+                    ocupado(false);
                     Ui.mostrarError(this, mensaje);
                 });
+    }
+
+    private void ocupado(boolean ocupado) {
+        btnRegistrar.setDisable(ocupado);
+        btnRegistrar.setText(ocupado ? "Registrando…" : textoBoton);
+        btnRegistrar.setGraphic(ocupado ? progreso : Ui.icono("mdi2c-check"));
     }
 
     private void actualizarTotal() {

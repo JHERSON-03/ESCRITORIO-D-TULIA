@@ -1,108 +1,1065 @@
-/* D'Tulia · tema de escritorio (JavaFX CSS) */
+/*
+ * D'Tulia · tema de escritorio (JavaFX CSS)
+ * Basado en el DESIGN.md de Stitch "Sistema D'Tulia Inventario Ventas".
+ *
+ * JavaFX solo admite variables (looked-up colors) para colores. Las medidas se repiten como
+ * constantes y se documentan aquí para mantenerlas iguales en todo el archivo:
+ *   Radios .......... 6px contenedores, botones y campos · 4px pestañas · 999px badges
+ *   Espaciado (4px).. 4 · 6 · 8 · 12 · 16 · 20 (margen de pantalla 14-16)
+ *   Campos .......... alto 34px, relleno 6 10 · login 40px
+ *   Filas de tabla .. 38px · cabecera 36px
+ *   Letra ........... mínimo 13px · títulos 15 / 18 / 22px
+ *   Sombras ......... nivel 2: dropshadow(gaussian, -dt-sombra, 14, 0, 0, 4)
+ *                     nivel 3: dropshadow(gaussian, -dt-sombra-fuerte, 32, 0, 0, 12)
+ */
 
 .root {
+    /* Marca */
     -dt-vino: #6d1f3a;
     -dt-vino-oscuro: #531530;
+    -dt-vino-presionado: #3d0f23;
+    -dt-vino-profundo: #420e23;
+    -dt-vino-tenue: #faf0f3;
+    -dt-vino-tenue-borde: #eed7de;
+    -dt-vino-seleccion: #f3e5e9;
+    -dt-fila-seleccionada: #f0d7e0;
+
+    /* Superficies */
     -dt-fondo: #f6f3f1;
+    -dt-superficie: #ffffff;
+    -dt-superficie-alt: #faf8f7;
+    -dt-hover: #f0eae7;
+    -dt-hover-oscuro: #ece6e2;
+    -dt-barra: #ebe4df;
     -dt-borde: #e2d9d5;
+    -dt-borde-campo: #d5ccc7;
+    -dt-borde-fuerte: #d3c6c1;
+
+    /* Texto */
+    -dt-texto: #1f191b;
     -dt-suave: #6c6266;
+    -dt-tenue: #94898e;
+    -dt-icono: #8c8085;
+    -dt-inverso: #362e32;
+
+    /* Estados operativos */
+    -dt-exito: #027a48;
+    -dt-exito-fondo: #ecfdf3;
+    -dt-exito-borde: #a6f4c5;
+    -dt-exito-punto: #12b76a;
+    -dt-aviso: #b54708;
+    -dt-aviso-fondo: #fffaeb;
+    -dt-aviso-borde: #fedf89;
+    -dt-peligro: #b42318;
+    -dt-peligro-fondo: #fef3f2;
+    -dt-peligro-borde: #fecdca;
+    -dt-info: #175cd3;
+    -dt-info-fondo: #eff8ff;
+    -dt-info-borde: #b2ddff;
+
+    /* Foco y sombras */
+    -dt-anillo-foco: rgba(109, 31, 58, 0.18);
+    -dt-sombra: rgba(31, 25, 27, 0.10);
+    -dt-sombra-fuerte: rgba(31, 25, 27, 0.16);
+
+    /* Modena: se apoya en las variables de arriba */
     -fx-accent: -dt-vino;
     -fx-focus-color: -dt-vino;
-    -fx-faint-focus-color: #6d1f3a22;
+    -fx-faint-focus-color: -dt-anillo-foco;
+    -fx-selection-bar: -dt-vino-seleccion;
+    -fx-selection-bar-non-focused: -dt-vino-seleccion;
+    -fx-control-inner-background: -dt-superficie;
+    -fx-control-inner-background-alt: -dt-superficie-alt;
+    /* Texto sobre fondos claros (Modena elige claro u oscuro según el fondo) */
+    -fx-dark-text-color: -dt-texto;
+    -fx-mid-text-color: -dt-texto;
+
     -fx-font-family: "Segoe UI";
     -fx-font-size: 13px;
     -fx-background-color: -dt-fondo;
 }
 
-/* ---- Login ---- */
-.login {
-    -fx-background-color: white;
+/* =========================================================
+ * Tipografía
+ * ========================================================= */
+.titulo-lg {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
 }
 
-.marca {
-    -fx-font-size: 32px;
+.titulo-md {
+    -fx-font-size: 18px;
     -fx-font-weight: bold;
-    -fx-text-fill: -dt-vino;
+    -fx-text-fill: -dt-texto;
+}
+
+.titulo-sm {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
 }
 
 .subtitulo,
-.estado {
+.estado,
+.texto-suave {
     -fx-text-fill: -dt-suave;
 }
 
-.mensaje-error {
-    -fx-text-fill: #b42318;
+.texto-mono {
+    -fx-font-family: "Consolas";
 }
 
-/* ---- Botones ---- */
+.mensaje-error {
+    -fx-text-fill: -dt-peligro;
+}
+
+/* =========================================================
+ * Íconos (Ikonli)
+ * ========================================================= */
+.ikonli-font-icon {
+    -fx-icon-color: -dt-suave;
+}
+
+/* =========================================================
+ * Botones
+ * ========================================================= */
+.button,
+.toggle-button {
+    -fx-background-color: -dt-borde-campo, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-text-fill: -dt-texto;
+    -fx-padding: 6 14;
+    -fx-graphic-text-gap: 6;
+    -fx-cursor: hand;
+}
+
+.button:hover,
+.toggle-button:hover {
+    -fx-background-color: -dt-borde-fuerte, -dt-fondo;
+}
+
+.button:armed,
+.toggle-button:armed {
+    -fx-background-color: -dt-borde-fuerte, -dt-hover-oscuro;
+}
+
+/* Foco visible con teclado: anillo vino suave alrededor del botón */
+.button:focused,
+.toggle-button:focused {
+    -fx-background-color: -dt-anillo-foco, -dt-vino, -dt-superficie;
+    -fx-background-insets: -3, 0, 1;
+    -fx-background-radius: 9, 6, 5;
+}
+
+.button:focused:hover,
+.toggle-button:focused:hover {
+    -fx-background-color: -dt-anillo-foco, -dt-vino, -dt-fondo;
+}
+
+.button .ikonli-font-icon {
+    -fx-icon-size: 16px;
+}
+
+/* Primario: acción principal de la pantalla */
 .boton-primario {
     -fx-background-color: -dt-vino;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 6;
-    -fx-padding: 8 18;
-    -fx-cursor: hand;
+    -fx-padding: 7 18;
 }
 
 .boton-primario:hover {
     -fx-background-color: -dt-vino-oscuro;
 }
 
-/* ---- Ventana principal ---- */
-.cabecera {
+.boton-primario:armed {
+    -fx-background-color: -dt-vino-presionado;
+}
+
+.boton-primario:focused {
+    -fx-background-color: -dt-anillo-foco, -dt-vino;
+    -fx-background-insets: -3, 0;
+    -fx-background-radius: 9, 6;
+}
+
+.boton-primario:focused:hover {
+    -fx-background-color: -dt-anillo-foco, -dt-vino-oscuro;
+}
+
+.boton-primario .ikonli-font-icon {
+    -fx-icon-color: white;
+}
+
+/* Deshabilitado: se nota apagado pero el texto sigue legible */
+.boton-primario:disabled {
+    -fx-opacity: 0.45;
+}
+
+.boton-primario .progress-indicator {
+    -fx-progress-color: white;
+}
+
+/* Peligro: anular, eliminar */
+.boton-peligro {
+    -fx-background-color: -dt-peligro, -dt-superficie;
+    -fx-text-fill: -dt-peligro;
+}
+
+.boton-peligro:hover {
+    -fx-background-color: -dt-peligro, -dt-peligro-fondo;
+}
+
+.boton-peligro:focused {
+    -fx-background-color: rgba(180, 35, 24, 0.18), -dt-peligro, -dt-superficie;
+}
+
+.boton-peligro .ikonli-font-icon {
+    -fx-icon-color: -dt-peligro;
+}
+
+.boton-peligro-solido {
+    -fx-background-color: -dt-peligro;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.boton-peligro-solido:hover {
+    -fx-background-color: #912018;
+}
+
+.boton-peligro-solido:focused {
+    -fx-background-color: rgba(180, 35, 24, 0.25), -dt-peligro;
+    -fx-background-insets: -3, 0;
+    -fx-background-radius: 9, 6;
+}
+
+.boton-peligro-solido .ikonli-font-icon {
+    -fx-icon-color: white;
+}
+
+/* Botón grande (login y acciones de cierre) */
+.boton-grande {
+    -fx-font-size: 14px;
+    -fx-pref-height: 44px;
+}
+
+/* =========================================================
+ * Campos de texto, desplegables, spinners
+ * ========================================================= */
+.text-field,
+.password-field,
+.combo-box-base,
+.spinner,
+.choice-box {
+    -fx-background-color: -dt-borde-campo, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-prompt-text-fill: -dt-tenue;
+    -fx-highlight-fill: -dt-vino-seleccion;
+    -fx-highlight-text-fill: -dt-texto;
+}
+
+.text-field,
+.password-field {
+    -fx-padding: 6 10;
+}
+
+.text-field:hover,
+.password-field:hover,
+.combo-box-base:hover,
+.spinner:hover {
+    -fx-background-color: -dt-borde-fuerte, -dt-superficie;
+}
+
+.text-field:focused,
+.password-field:focused,
+.combo-box-base:focused,
+.combo-box-base:showing,
+.spinner:focused,
+.spinner:contains-focus {
+    -fx-background-color: -dt-anillo-foco, -dt-vino, -dt-superficie;
+    -fx-background-insets: -3, 0, 1;
+    -fx-background-radius: 9, 6, 5;
+}
+
+/* Editores internos: sin borde propio (el borde lo pone el contenedor) */
+.spinner > .text-field,
+.combo-box-base > .text-field,
+.date-picker > .text-field {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+}
+
+.combo-box-base > .arrow-button > .arrow,
+.spinner .increment-arrow-button > .increment-arrow,
+.spinner .decrement-arrow-button > .decrement-arrow {
+    -fx-background-color: -dt-suave;
+}
+
+.combo-box-base > .arrow-button,
+.spinner .increment-arrow-button,
+.spinner .decrement-arrow-button {
+    -fx-background-color: transparent;
+}
+
+.text-area {
+    -fx-background-color: -dt-borde-campo, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-prompt-text-fill: -dt-tenue;
+}
+
+.text-area:focused {
+    -fx-background-color: -dt-anillo-foco, -dt-vino, -dt-superficie;
+    -fx-background-insets: -3, 0, 1;
+    -fx-background-radius: 9, 6, 5;
+}
+
+.text-area .content {
+    -fx-background-color: -dt-superficie;
+    -fx-background-radius: 5;
+}
+
+/* Listas desplegables: nivel 2 (borde + sombra ambiental) */
+.combo-box-popup > .list-view {
+    -fx-background-color: -dt-borde, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6;
+    -fx-effect: dropshadow(gaussian, -dt-sombra, 14, 0, 0, 4);
+}
+
+.combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell {
+    -fx-padding: 6 10;
+}
+
+.combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:hover {
+    -fx-background-color: -dt-hover;
+    -fx-text-fill: -dt-texto;
+}
+
+.combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:selected {
+    -fx-background-color: -dt-vino-seleccion;
+    -fx-text-fill: -dt-vino;
+}
+
+/* Casillas */
+.check-box > .box {
+    -fx-background-color: -dt-suave, -dt-superficie;
+    -fx-background-insets: 0, 1.5;
+    -fx-background-radius: 4, 3;
+}
+
+.check-box:hover > .box {
+    -fx-background-color: -dt-vino, -dt-superficie;
+}
+
+.check-box:focused > .box {
+    -fx-background-color: -dt-anillo-foco, -dt-vino, -dt-superficie;
+    -fx-background-insets: -3, 0, 1.5;
+    -fx-background-radius: 6, 4, 3;
+}
+
+.check-box:selected > .box {
     -fx-background-color: -dt-vino;
-    -fx-padding: 10 16;
+    -fx-background-insets: 0;
+}
+
+.check-box:selected:focused > .box {
+    -fx-background-color: -dt-anillo-foco, -dt-vino;
+    -fx-background-insets: -3, 0;
+}
+
+.check-box:selected > .box > .mark {
+    -fx-background-color: white;
+}
+
+/* =========================================================
+ * Contenedores
+ * ========================================================= */
+.formulario {
+    -fx-padding: 14;
+}
+
+/* Tarjeta blanca (nivel 1): borde cálido, sin sombra */
+.seccion,
+.tarjeta {
+    -fx-background-color: -dt-borde, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-padding: 12;
+}
+
+.titulo-seccion {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
+    -fx-graphic-text-gap: 8;
+}
+
+.titulo-seccion .ikonli-font-icon {
+    -fx-icon-color: -dt-vino;
+    -fx-icon-size: 18px;
+}
+
+/* Spinner "− [ 1 ] +" para cantidades */
+.spinner-cantidad > .text-field {
+    -fx-alignment: center;
+}
+
+.spinner-cantidad .increment-arrow-button,
+.spinner-cantidad .decrement-arrow-button {
+    -fx-padding: 0 9;
+    -fx-cursor: hand;
+}
+
+/* Signos + y − en vez de flechas */
+.spinner-cantidad .increment-arrow-button > .increment-arrow {
+    -fx-shape: "M3.75,0 h1.5 v3.75 h3.75 v1.5 h-3.75 v3.75 h-1.5 v-3.75 h-3.75 v-1.5 h3.75 z";
+    -fx-padding: 4.5;
+    -fx-background-color: -dt-texto;
+}
+
+.spinner-cantidad .decrement-arrow-button > .decrement-arrow {
+    -fx-shape: "M0,0 h9 v1.5 h-9 z";
+    -fx-padding: 0.75 4.5;
+    -fx-background-color: -dt-texto;
+}
+
+.spinner-cantidad .increment-arrow-button:hover,
+.spinner-cantidad .decrement-arrow-button:hover {
+    -fx-background-color: -dt-hover;
+    -fx-background-radius: 5;
+}
+
+.total-cajas {
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
+}
+
+/* Botones segmentados (Entrada / Merma / Ajuste) */
+.segmento > .toggle-button {
+    -fx-background-radius: 0;
+    -fx-background-insets: 0, 1 0 1 1;
+    -fx-padding: 6 12;
+}
+
+.segmento > .toggle-button:first-child {
+    -fx-background-radius: 6 0 0 6, 5 0 0 5;
+}
+
+.segmento > .toggle-button:last-child {
+    -fx-background-radius: 0 6 6 0, 0 5 5 0;
+    -fx-background-insets: 0, 1;
+}
+
+.segmento > .toggle-button:selected {
+    -fx-background-color: -dt-vino, -dt-vino;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.segmento > .toggle-button:selected .ikonli-font-icon {
+    -fx-icon-color: white;
+}
+
+.segmento > .toggle-button:focused {
+    -fx-background-insets: 0, 1;
+}
+
+/* Stock actual del producto elegido */
+.stock-actual {
+    -fx-background-color: -dt-exito-borde, -dt-exito-fondo;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-padding: 4 10;
+    -fx-text-fill: -dt-exito;
+    -fx-font-weight: bold;
+}
+
+.stock-actual .ikonli-font-icon {
+    -fx-icon-color: -dt-exito;
+}
+
+/* Texto de ayuda con ícono (indicaciones al pie de una sección) */
+.ayuda {
+    -fx-text-fill: -dt-suave;
+}
+
+.ayuda .ikonli-font-icon {
+    -fx-icon-color: -dt-icono;
+    -fx-icon-size: 15px;
+}
+
+.split-pane.columnas {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.split-pane.columnas > .split-pane-divider {
+    -fx-background-color: transparent;
+    -fx-padding: 0 5;
+}
+
+/* División arriba/abajo: el separador es un espacio de 10px con una marca para arrastrar */
+.split-pane.division-vertical {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.split-pane.division-vertical > .split-pane-divider {
+    -fx-background-color: transparent;
+    -fx-padding: 5 0;
+}
+
+.split-pane.division-vertical > .split-pane-divider:hover {
+    -fx-background-color: -dt-hover-oscuro;
+}
+
+.scroll-pane {
+    -fx-background-color: transparent;
+}
+
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+/* Panel desplazable que además es tarjeta (grilla de la liquidación) */
+.scroll-pane.seccion {
+    -fx-background-color: -dt-borde, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-padding: 1;
+}
+
+/* =========================================================
+ * Login
+ * ========================================================= */
+.login-fondo {
+    -fx-background-color: linear-gradient(to bottom, -dt-fondo, #eee8e4);
+    -fx-padding: 24;
+}
+
+.login-tarjeta {
+    -fx-background-color: -dt-borde, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-padding: 32 32 20 32;
+    -fx-effect: dropshadow(gaussian, -dt-sombra, 24, 0, 0, 6);
+}
+
+.login-logo {
+    -fx-background-color: -dt-vino-tenue-borde, -dt-vino-tenue;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 999;
+    -fx-min-width: 56px;
+    -fx-min-height: 56px;
+    -fx-max-width: 56px;
+    -fx-max-height: 56px;
+}
+
+.login-logo .ikonli-font-icon {
+    -fx-icon-color: -dt-vino;
+    -fx-icon-size: 30px;
+}
+
+.marca {
+    -fx-font-size: 30px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-vino;
+}
+
+.login-divisor {
+    -fx-background-color: rgba(109, 31, 58, 0.2);
+    -fx-background-radius: 1;
+    -fx-min-width: 48px;
+    -fx-max-width: 48px;
+    -fx-min-height: 2px;
+    -fx-max-height: 2px;
+}
+
+.etiqueta-campo {
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
+}
+
+.campo-login {
+    -fx-font-size: 14px;
+    -fx-pref-height: 40px;
+    -fx-padding: 6 12;
+}
+
+.campo-login:focused {
+    -fx-background-color: -dt-anillo-foco, -dt-vino, -dt-superficie;
+}
+
+.aviso-mayus {
+    -fx-text-fill: -dt-aviso;
+    -fx-font-weight: bold;
+}
+
+.aviso-mayus .ikonli-font-icon {
+    -fx-icon-color: -dt-aviso;
+    -fx-icon-size: 14px;
+}
+
+.login-pie {
+    -fx-border-color: -dt-hover transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 14 0 0 0;
+}
+
+.login-pie .ikonli-font-icon {
+    -fx-icon-color: -dt-icono;
+    -fx-icon-size: 14px;
+}
+
+/* Recuadro de error (login, formularios) */
+.alerta-error {
+    -fx-background-color: -dt-peligro-borde, -dt-peligro-fondo;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-padding: 8 10;
+}
+
+.alerta-error .label {
+    -fx-text-fill: -dt-peligro;
+}
+
+.alerta-error .ikonli-font-icon {
+    -fx-icon-color: -dt-peligro;
+    -fx-icon-size: 16px;
+}
+
+/* =========================================================
+ * Ventana principal: cabecera
+ * ========================================================= */
+.cabecera {
+    -fx-background-color: -dt-vino-oscuro, -dt-vino;
+    -fx-background-insets: 0, 0 0 1 0;
+    -fx-padding: 0 20;
+    -fx-min-height: 56px;
+    -fx-pref-height: 56px;
 }
 
 .cabecera .label {
     -fx-text-fill: white;
 }
 
+.cabecera-logo {
+    -fx-background-color: rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1);
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 4, 3;
+    -fx-min-width: 32px;
+    -fx-min-height: 32px;
+    -fx-max-width: 32px;
+    -fx-max-height: 32px;
+}
+
+.cabecera-logo .ikonli-font-icon {
+    -fx-icon-color: white;
+    -fx-icon-size: 20px;
+}
+
 .cabecera-marca {
-    -fx-font-size: 18px;
+    -fx-font-size: 20px;
     -fx-font-weight: bold;
 }
 
-.formulario {
-    -fx-padding: 14;
+.cabecera .cabecera-sub {
+    -fx-text-fill: rgba(255, 255, 255, 0.75);
 }
 
-.seccion {
-    -fx-background-color: white;
-    -fx-background-radius: 6;
-    -fx-border-color: -dt-borde;
-    -fx-border-radius: 6;
-    -fx-padding: 12;
-}
-
-.titulo-seccion {
+.cabecera-usuario {
     -fx-font-weight: bold;
+}
+
+.cabecera .cabecera-separador {
+    -fx-text-fill: rgba(255, 255, 255, 0.6);
+}
+
+.cabecera .cabecera-sede {
+    -fx-text-fill: rgba(255, 255, 255, 0.85);
+}
+
+.insignia-rol {
+    -fx-background-color: rgba(255, 255, 255, 0.15), -dt-vino-oscuro;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 4, 3;
+    -fx-padding: 1 7;
+    -fx-font-weight: bold;
+}
+
+.boton-cabecera {
+    -fx-background-color: rgba(255, 255, 255, 0.2), -dt-vino-oscuro;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-text-fill: white;
+}
+
+.boton-cabecera:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.3), -dt-vino-profundo;
+}
+
+.boton-cabecera:focused {
+    -fx-background-color: rgba(255, 255, 255, 0.35), white, -dt-vino-oscuro;
+    -fx-background-insets: -3, 0, 1;
+    -fx-background-radius: 9, 6, 5;
+}
+
+.boton-cabecera .ikonli-font-icon {
+    -fx-icon-color: rgba(255, 255, 255, 0.85);
+}
+
+/* =========================================================
+ * Pestañas
+ * ========================================================= */
+.tab-pane > .tab-header-area {
+    -fx-padding: 6 16 0 16;
+}
+
+.tab-pane > .tab-header-area > .tab-header-background {
+    -fx-background-color: -dt-borde, -dt-fondo;
+    -fx-background-insets: 0, 0 0 1 0;
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4 4 0 0;
+    -fx-padding: 7 14;
+    -fx-cursor: hand;
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab:hover {
+    -fx-background-color: -dt-hover-oscuro;
+}
+
+/* Pestaña activa: blanca, filete vino arriba, se funde con el contenido */
+.tab-pane > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: -dt-vino, -dt-borde, -dt-superficie;
+    -fx-background-insets: 0, 2 0 0 0, 2 1 0 1;
+    -fx-background-radius: 4 4 0 0, 0, 0;
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab .ikonli-font-icon {
+    -fx-icon-color: -dt-icono;
+    -fx-icon-size: 16px;
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab:selected .ikonli-font-icon {
+    -fx-icon-color: -dt-vino;
+}
+
+.titulo-pestana {
+    -fx-text-fill: -dt-suave;
+    -fx-font-size: 13px;
+}
+
+.tab:hover .titulo-pestana {
+    -fx-text-fill: -dt-texto;
+}
+
+.tab:selected .titulo-pestana {
+    -fx-text-fill: -dt-vino;
+    -fx-font-weight: bold;
+}
+
+/* Foco de teclado en la pestaña activa */
+.tab-pane:focused > .tab-header-area > .headers-region > .tab:selected .focus-indicator {
+    -fx-border-color: -dt-anillo-foco;
+    -fx-border-width: 2;
+    -fx-border-insets: -4 -4 -2 -4;
+    -fx-border-radius: 4;
+}
+
+.insignia-pestana {
+    -fx-background-color: -dt-peligro;
+    -fx-background-radius: 999;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 0 6;
+    -fx-min-width: 20px;
+    -fx-min-height: 20px;
+    -fx-alignment: center;
+}
+
+.tab-pane > .tab-content-area {
+    -fx-background-color: -dt-fondo;
+}
+
+/* Pestañas dentro de una tarjeta (detalle del viaje): subrayado vino, sin fondo */
+.pestanas-internas > .tab-header-area {
+    -fx-padding: 0;
+}
+
+.pestanas-internas > .tab-header-area > .tab-header-background {
+    -fx-background-color: -dt-borde, -dt-superficie;
+    -fx-background-insets: 0, 0 0 1 0;
+}
+
+.pestanas-internas > .tab-header-area > .headers-region > .tab {
+    -fx-padding: 6 12;
+    -fx-background-radius: 0;
+}
+
+.pestanas-internas > .tab-header-area > .headers-region > .tab:hover {
+    -fx-background-color: -dt-superficie-alt;
+}
+
+.pestanas-internas > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: -dt-vino, -dt-superficie;
+    -fx-background-insets: 0, 0 0 2 0;
+    -fx-background-radius: 0, 0;
+}
+
+.pestanas-internas > .tab-content-area {
+    -fx-background-color: transparent;
+    -fx-padding: 8 0 0 0;
+}
+
+/* =========================================================
+ * Barra de estado (pie de la ventana)
+ * ========================================================= */
+.barra-estado {
+    -fx-background-color: -dt-borde-campo, -dt-barra;
+    -fx-background-insets: 0, 1 0 0 0;
+    -fx-padding: 5 14;
+}
+
+.barra-estado .label {
     -fx-text-fill: -dt-suave;
 }
 
-.cliente {
+.barra-estado .ikonli-font-icon {
+    -fx-icon-color: -dt-icono;
+    -fx-icon-size: 14px;
+}
+
+.barra-estado .separador-estado {
+    -fx-text-fill: -dt-borde-fuerte;
+}
+
+.barra-estado .texto-fuerte {
+    -fx-text-fill: -dt-texto;
     -fx-font-weight: bold;
 }
 
-.total {
-    -fx-font-size: 20px;
-    -fx-font-weight: bold;
-    -fx-text-fill: -dt-vino;
+.punto-conexion {
+    -fx-background-radius: 999;
+    -fx-min-width: 8px;
+    -fx-min-height: 8px;
+    -fx-max-width: 8px;
+    -fx-max-height: 8px;
+    -fx-background-color: -dt-exito-punto;
 }
 
-/* ---- Tablas ---- */
-.numero {
+.punto-conexion:desconectado {
+    -fx-background-color: -dt-peligro;
+}
+
+.barra-estado .texto-conexion:desconectado {
+    -fx-text-fill: -dt-peligro;
+    -fx-font-weight: bold;
+}
+
+/* =========================================================
+ * Diálogos (Alert / TextInputDialog)
+ * ========================================================= */
+.dialog-pane {
+    -fx-background-color: -dt-superficie;
+    -fx-padding: 0;
+}
+
+.dialog-pane > .header-panel {
+    -fx-background-color: -dt-borde, -dt-fondo;
+    -fx-background-insets: 0, 0 0 1 0;
+    -fx-padding: 14 16;
+}
+
+.dialog-pane > .header-panel .label {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
+}
+
+.dialog-pane > .content {
+    -fx-padding: 16;
+}
+
+.dialog-pane > .header-panel .ikonli-font-icon {
+    -fx-icon-color: -dt-vino;
+}
+
+.dialog-pane.dialogo-peligro > .header-panel .ikonli-font-icon {
+    -fx-icon-color: -dt-peligro;
+}
+
+/* En la confirmación, "Cancelar" (el botón por defecto) es secundario: el único botón fuerte es el rojo */
+.dialog-pane.dialogo-peligro .button:default {
+    -fx-background-color: -dt-borde-campo, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-text-fill: -dt-texto;
+    -fx-font-weight: normal;
+}
+
+.dialog-pane.dialogo-peligro .button:default:focused {
+    -fx-background-color: -dt-anillo-foco, -dt-vino, -dt-superficie;
+    -fx-background-insets: -3, 0, 1;
+    -fx-background-radius: 9, 6, 5;
+}
+
+/* Paneles desplazables que envuelven columnas de formulario */
+.desplazable,
+.desplazable:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.dialog-pane > .button-bar > .container {
+    -fx-padding: 0 16 14 16;
+}
+
+.dialog-pane .button:default {
+    -fx-background-color: -dt-vino;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.dialog-pane .button:default:hover {
+    -fx-background-color: -dt-vino-oscuro;
+}
+
+.dialog-pane .button:default:focused {
+    -fx-background-color: -dt-anillo-foco, -dt-vino;
+    -fx-background-insets: -3, 0;
+    -fx-background-radius: 9, 6;
+}
+
+/* =========================================================
+ * Tablas
+ * ========================================================= */
+.table-view {
+    -fx-background-color: -dt-borde, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-padding: 1;
+    -fx-table-cell-border-color: -dt-borde;
+}
+
+.table-view:focused {
+    -fx-background-color: -dt-borde-fuerte, -dt-superficie;
+}
+
+/* Cabecera fija color vino oscuro */
+.table-view > .column-header-background {
+    -fx-background-color: -dt-vino-oscuro;
+    -fx-background-radius: 5 5 0 0;
+}
+
+.table-view > .column-header-background > .filler,
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent rgba(255, 255, 255, 0.12) transparent transparent;
+    -fx-border-width: 0 1 0 0;
+    -fx-size: 36px;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 0 8;
+    -fx-alignment: CENTER-LEFT;
+}
+
+.table-view .column-header .arrow {
+    -fx-background-color: white;
+}
+
+.table-view .column-header.numero .label {
     -fx-alignment: CENTER-RIGHT;
 }
 
+.table-view .column-header.centrado .label {
+    -fx-alignment: CENTER;
+}
+
+/* Filas: 38px, cebra suave, divisor horizontal */
+.table-row-cell {
+    -fx-cell-size: 38px;
+    -fx-background-color: -fx-table-cell-border-color, -fx-background;
+    -fx-background-insets: 0, 0 0 1 0;
+    /* Reserva el espacio de la franja de selección para que el texto no se mueva al elegir */
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 0 4;
+}
+
+.table-row-cell:filled:hover {
+    -fx-background: -dt-hover;
+}
+
+/* Fila elegida: rosado claro más marcado que la cebra y el hover, con franja vino a la izquierda.
+   Se ve igual aunque la tabla no tenga el foco (al mirar el detalle de abajo sigue marcada). */
+.table-view > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled:selected,
+.table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled:selected {
+    -fx-background: -dt-fila-seleccionada;
+    -fx-border-color: transparent transparent transparent -dt-vino;
+    -fx-border-width: 0 0 0 4;
+}
+
+/* Las filas vacías bajo los datos no llevan cebra ni divisor */
+.table-row-cell:empty {
+    -fx-background-color: transparent;
+}
+
+.table-view .table-cell {
+    -fx-border-color: transparent;
+    -fx-padding: 0 8;
+    -fx-alignment: CENTER-LEFT;
+}
+
+.table-view .placeholder .label {
+    -fx-text-fill: -dt-suave;
+}
+
+/* Misma especificidad que ".table-view .table-cell" para ganarle: números a la derecha */
+.numero,
+.table-view .table-cell.numero {
+    -fx-alignment: CENTER-RIGHT;
+}
+
+.centrado,
+.table-view .table-cell.centrado {
+    -fx-alignment: CENTER;
+}
+
+/* Alertas de stock */
 .table-row-cell.stock-bajo,
 .leyenda-bajo {
-    -fx-background: #fff3dc;
+    -fx-background: -dt-aviso-fondo;
+}
+
+.table-row-cell.stock-bajo:filled:hover {
+    -fx-background: #fff3d1;
 }
 
 .table-row-cell.sin-stock,
 .leyenda-sin {
-    -fx-background: #fde4e4;
+    -fx-background: -dt-peligro-fondo;
+}
+
+.table-row-cell.sin-stock:filled:hover {
+    -fx-background: #fde4e2;
 }
 
 .leyenda-bajo,
@@ -112,19 +1069,18 @@
     -fx-padding: 2 8;
 }
 
-/* ---- Viajes ---- */
+.table-row-cell.anulado {
+    -fx-opacity: 0.5;
+}
+
 .texto-alerta {
-    -fx-text-fill: #b42318;
+    -fx-text-fill: -dt-peligro;
     -fx-font-weight: bold;
 }
 
 .texto-ok {
-    -fx-text-fill: #1a7f37;
+    -fx-text-fill: -dt-exito;
     -fx-font-weight: bold;
-}
-
-.table-row-cell.anulado {
-    -fx-opacity: 0.5;
 }
 
 .encabezado-grilla {
@@ -132,9 +1088,418 @@
     -fx-text-fill: -dt-suave;
 }
 
-/* ---- Ventas: tabla de precios y stock ---- */
-.centrado {
-    -fx-alignment: CENTER;
+/* =========================================================
+ * Insignias (badges de estado y tipo): píldoras de 13px
+ * ========================================================= */
+.insignia {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 1 9;
+    -fx-background-radius: 999;
+    -fx-background-insets: 0, 1;
+    -fx-alignment: center;
+}
+
+.insignia-exito {
+    -fx-background-color: -dt-exito-borde, -dt-exito-fondo;
+    -fx-text-fill: -dt-exito;
+}
+
+.insignia-aviso {
+    -fx-background-color: -dt-aviso-borde, -dt-aviso-fondo;
+    -fx-text-fill: -dt-aviso;
+}
+
+.insignia-peligro {
+    -fx-background-color: -dt-peligro-borde, -dt-peligro-fondo;
+    -fx-text-fill: -dt-peligro;
+}
+
+.insignia-info {
+    -fx-background-color: -dt-info-borde, -dt-info-fondo;
+    -fx-text-fill: -dt-info;
+}
+
+.insignia-neutro {
+    -fx-background-color: -dt-borde, -dt-fondo;
+    -fx-text-fill: -dt-suave;
+}
+
+.insignia-vino {
+    -fx-background-color: -dt-vino-tenue-borde, -dt-vino-tenue;
+    -fx-text-fill: -dt-vino;
+}
+
+.insignia-morado {
+    -fx-background-color: #d9d6fe, #f4f3ff;
+    -fx-text-fill: #5925dc;
+}
+
+/* La fila seleccionada no cambia el color de la insignia */
+.table-row-cell:selected .insignia-exito { -fx-text-fill: -dt-exito; }
+.table-row-cell:selected .insignia-aviso { -fx-text-fill: -dt-aviso; }
+.table-row-cell:selected .insignia-peligro { -fx-text-fill: -dt-peligro; }
+.table-row-cell:selected .insignia-info { -fx-text-fill: -dt-info; }
+.table-row-cell:selected .insignia-neutro { -fx-text-fill: -dt-suave; }
+.table-row-cell:selected .insignia-vino { -fx-text-fill: -dt-vino; }
+.table-row-cell:selected .insignia-morado { -fx-text-fill: #5925dc; }
+
+/* =========================================================
+ * Tarjetas de resumen (franja superior de Inventario y Viajes)
+ * ========================================================= */
+.tarjeta-resumen {
+    -fx-background-color: -dt-borde, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-padding: 8 12;
+}
+
+.tarjeta-resumen-icono {
+    -fx-background-radius: 6;
+    -fx-min-width: 34px;
+    -fx-min-height: 34px;
+    -fx-max-width: 34px;
+    -fx-max-height: 34px;
+    -fx-background-color: -dt-fondo;
+}
+
+.tarjeta-resumen-icono .ikonli-font-icon {
+    -fx-icon-size: 20px;
+}
+
+.tarjeta-resumen-titulo {
+    -fx-text-fill: -dt-suave;
+}
+
+.tarjeta-resumen-valor {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
+}
+
+.tono-vino .tarjeta-resumen-icono { -fx-background-color: -dt-vino-tenue; }
+.tono-vino .tarjeta-resumen-icono .ikonli-font-icon { -fx-icon-color: -dt-vino; }
+.tono-exito .tarjeta-resumen-icono { -fx-background-color: -dt-exito-fondo; }
+.tono-exito .tarjeta-resumen-icono .ikonli-font-icon { -fx-icon-color: -dt-exito; }
+.tono-aviso .tarjeta-resumen-icono { -fx-background-color: -dt-aviso-fondo; }
+.tono-aviso .tarjeta-resumen-icono .ikonli-font-icon { -fx-icon-color: -dt-aviso; }
+.tono-aviso .tarjeta-resumen-valor { -fx-text-fill: -dt-aviso; }
+.tono-peligro .tarjeta-resumen-icono { -fx-background-color: -dt-peligro-fondo; }
+.tono-peligro .tarjeta-resumen-icono .ikonli-font-icon { -fx-icon-color: -dt-peligro; }
+.tono-peligro .tarjeta-resumen-valor { -fx-text-fill: -dt-peligro; }
+.tono-info .tarjeta-resumen-icono { -fx-background-color: -dt-info-fondo; }
+.tono-info .tarjeta-resumen-icono .ikonli-font-icon { -fx-icon-color: -dt-info; }
+.tono-neutro .tarjeta-resumen-icono .ikonli-font-icon { -fx-icon-color: -dt-suave; }
+
+/* Tarjeta que además funciona como filtro (clic) */
+.tarjeta-resumen.clicable {
+    -fx-cursor: hand;
+}
+
+.tarjeta-resumen.clicable:hover {
+    -fx-background-color: -dt-borde-fuerte, -dt-superficie-alt;
+}
+
+.tarjeta-resumen.clicable:activa {
+    -fx-background-color: -dt-aviso, -dt-aviso-fondo;
+}
+
+/* =========================================================
+ * Estados vacío y de carga
+ * ========================================================= */
+.estado-vacio {
+    -fx-padding: 24;
+}
+
+.estado-vacio .ikonli-font-icon {
+    -fx-icon-size: 40px;
+    -fx-icon-color: -dt-borde-fuerte;
+}
+
+.estado-vacio-titulo {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
+}
+
+.estado-vacio-detalle {
+    -fx-text-fill: -dt-suave;
+    -fx-text-alignment: center;
+}
+
+.estado-cargando .label {
+    -fx-text-fill: -dt-suave;
+}
+
+.mensaje-barra {
+    -fx-text-fill: -dt-peligro;
+}
+
+.mensaje-barra .ikonli-font-icon {
+    -fx-icon-color: -dt-peligro;
+}
+
+/* =========================================================
+ * Notificaciones (toast): superficie oscura, nivel 2
+ * ========================================================= */
+.toast {
+    -fx-background-color: -dt-inverso;
+    -fx-background-radius: 6;
+    -fx-padding: 10 16 10 12;
+    -fx-effect: dropshadow(gaussian, -dt-sombra-fuerte, 18, 0, 0, 6);
+    -fx-cursor: hand;
+}
+
+.toast .label {
+    -fx-text-fill: white;
+    -fx-graphic-text-gap: 10;
+}
+
+.toast-exito .ikonli-font-icon {
+    -fx-icon-color: #6ce9a6;
+}
+
+.toast-error .ikonli-font-icon {
+    -fx-icon-color: #fda29b;
+}
+
+/* =========================================================
+ * Barra de filtros y buscador con ícono
+ * ========================================================= */
+.barra-filtros {
+    -fx-background-color: -dt-borde, -dt-superficie;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-padding: 8 10;
+}
+
+.etiqueta-filtro {
+    -fx-text-fill: -dt-suave;
+    -fx-font-weight: bold;
+}
+
+.buscador > .ikonli-font-icon {
+    -fx-icon-color: -dt-icono;
+    -fx-icon-size: 16px;
+}
+
+.buscador > .text-field {
+    -fx-padding: 6 10 6 32;
+}
+
+.atajo {
+    -fx-background-color: -dt-borde, -dt-fondo;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 4, 3;
+    -fx-padding: 0 5;
+    -fx-text-fill: -dt-suave;
+    -fx-font-family: "Consolas";
+    -fx-font-size: 13px;
+}
+
+/* Leyenda de colores al pie de una tabla */
+.leyenda .label {
+    -fx-text-fill: -dt-suave;
+}
+
+.muestra-color {
+    -fx-min-width: 12px;
+    -fx-min-height: 12px;
+    -fx-max-width: 12px;
+    -fx-max-height: 12px;
+    -fx-background-radius: 3;
+}
+
+.muestra-color.ok { -fx-background-color: -dt-exito; }
+.muestra-color.bajo { -fx-background-color: -dt-aviso; }
+.muestra-color.sin { -fx-background-color: -dt-peligro; }
+
+/* Celdas de Inventario */
+.punto-stock {
+    -fx-min-width: 8px;
+    -fx-min-height: 8px;
+    -fx-max-width: 8px;
+    -fx-max-height: 8px;
+    -fx-background-radius: 999;
+    -fx-background-color: -dt-exito;
+}
+
+.punto-stock.bajo { -fx-background-color: -dt-aviso; }
+.punto-stock.sin { -fx-background-color: -dt-peligro; }
+
+.table-cell.stock-ok { -fx-text-fill: -dt-exito; -fx-font-weight: bold; }
+.table-cell.stock-bajo-texto { -fx-text-fill: -dt-aviso; -fx-font-weight: bold; }
+.table-cell.stock-cero { -fx-text-fill: -dt-peligro; -fx-font-weight: bold; }
+.table-cell.sin-precio { -fx-text-fill: -dt-tenue; -fx-font-style: italic; }
+
+/* =========================================================
+ * Liquidación del viaje
+ * ========================================================= */
+.grilla-liquidacion .encabezado-grilla {
+    -fx-text-fill: -dt-texto;
+}
+
+/* =========================================================
+ * Hoja de carga impresa (blanco y negro, 10px: entra en A4)
+ * ========================================================= */
+.hoja-carga {
+    -fx-background-color: white;
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 10px;
+}
+
+.hoja-carga .label {
+    -fx-text-fill: black;
+}
+
+.hoja-encabezado-pagina {
+    -fx-border-color: transparent transparent black transparent;
+    -fx-border-width: 0 0 2 0;
+    -fx-padding: 0 0 6 0;
+}
+
+.hoja-marca {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.hoja-titulo {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.hoja-numero {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.hoja-carga .hoja-tenue {
+    -fx-text-fill: #555555;
+}
+
+.hoja-tabla {
+    -fx-border-color: #444444;
+    -fx-border-width: 1 0 0 1;
+}
+
+.hoja-celda {
+    -fx-border-color: #444444;
+    -fx-border-width: 0 1 1 0;
+    -fx-padding: 4 5;
+}
+
+.hoja-encabezado {
+    -fx-font-weight: bold;
+    -fx-background-color: #e6e6e6;
+}
+
+.hoja-fila {
+    -fx-min-height: 24px;
+}
+
+/* =========================================================
+ * Ventas
+ * ========================================================= */
+.cliente {
+    -fx-font-weight: bold;
+}
+
+.cliente .ikonli-font-icon {
+    -fx-icon-color: -dt-vino;
+}
+
+.total {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-vino;
+}
+
+/* Tabla de precios: precio arriba, stock debajo; la celda elegida se enmarca en vino */
+.tabla-precios .table-row-cell {
+    -fx-cell-size: 50px;
+}
+
+.tabla-precios .table-cell:filled:hover {
+    -fx-background-color: -dt-hover-oscuro;
+}
+
+.tabla-precios .table-cell:selected {
+    -fx-background-color: -dt-vino, -dt-vino-tenue;
+    -fx-background-insets: 3, 5;
+    -fx-background-radius: 6, 4;
+}
+
+.precio-celda {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
+}
+
+.table-cell:selected .precio-celda {
+    -fx-text-fill: -dt-vino;
+}
+
+.stock-celda,
+.detalle-celda {
+    -fx-text-fill: -dt-suave;
+}
+
+.nombre-celda {
+    -fx-font-weight: bold;
+    -fx-text-fill: -dt-texto;
+}
+
+/* Producto elegido, sobre la cantidad */
+.seleccion-producto {
+    -fx-background-color: -dt-borde, -dt-superficie-alt;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 6, 5;
+    -fx-padding: 8 10;
+}
+
+.seleccion-producto .ikonli-font-icon {
+    -fx-icon-color: -dt-vino;
+    -fx-icon-size: 18px;
+}
+
+.seleccion-producto.vacia .label {
+    -fx-text-fill: -dt-suave;
+    -fx-font-weight: normal;
+}
+
+.seleccion-producto.vacia .ikonli-font-icon {
+    -fx-icon-color: -dt-icono;
+}
+
+/* Totales del ticket */
+.totales {
+    -fx-background-color: -dt-superficie-alt;
+    -fx-background-radius: 6;
+    -fx-padding: 10 12;
+}
+
+.totales .label {
+    -fx-text-fill: -dt-suave;
+}
+
+.totales .importe {
+    -fx-text-fill: -dt-texto;
+    -fx-font-weight: bold;
+}
+
+.totales .etiqueta-total {
+    -fx-text-fill: -dt-texto;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+
+.totales .total {
+    -fx-text-fill: -dt-vino;
+}
+
+/* Lista de atajos al pie */
+.atajos .label {
+    -fx-text-fill: -dt-suave;
 }
 
 .celda-apagada {
@@ -142,7 +1507,7 @@
 }
 
 .filtro-tipo {
-    -fx-background-radius: 14;
+    -fx-background-radius: 14, 13;
     -fx-padding: 4 12;
     -fx-cursor: hand;
 }
@@ -150,15 +1515,4 @@
 .filtro-tipo:selected {
     -fx-background-color: -dt-vino;
     -fx-text-fill: white;
-}
-
-/* Dos columnas de Ventas: el separador se ve como espacio entre las secciones */
-.split-pane.columnas {
-    -fx-background-color: transparent;
-    -fx-padding: 0;
-}
-
-.split-pane.columnas > .split-pane-divider {
-    -fx-background-color: transparent;
-    -fx-padding: 0 5;
 }

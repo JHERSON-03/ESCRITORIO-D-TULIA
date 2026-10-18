@@ -8,6 +8,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -76,21 +78,34 @@ class SelectorProductos extends VBox {
         cboProducto.valueProperty().addListener((obs, antes, ahora) -> {
             campoCajas.setProducto(ahora);
             lblStock.setText(ahora == null ? "" : "En almacén: " + Ui.cajas(ahora.stock(), ahora.unidadesCaja()));
+            lblStock.setVisible(limitarAlStock && ahora != null);
         });
         HBox filaProducto = new HBox(8, cboTipo, cboNombre, cboProducto);
         filaProducto.setAlignment(Pos.CENTER_LEFT);
 
-        Button btnAgregar = new Button("Agregar");
+        // Enter en las cajas o unidades agrega; Supr en la tabla quita la línea elegida
+        Button btnAgregar = Ui.boton("Agregar", "mdi2p-plus", "boton-primario");
+        btnAgregar.setTooltip(new Tooltip("Enter"));
         btnAgregar.setOnAction(e -> agregar());
-        Button btnQuitar = new Button("Quitar seleccionado");
-        btnQuitar.setOnAction(e -> {
+        campoCajas.setAlConfirmar(this::agregar);
+        Runnable quitar = () -> {
             Linea linea = tabla.getSelectionModel().getSelectedItem();
             if (linea != null) {
                 lineas.remove(linea);
             }
+        };
+        Button btnQuitar = Ui.boton("Quitar", "mdi2d-delete-outline");
+        btnQuitar.setTooltip(new Tooltip("Quitar la línea seleccionada (Supr)"));
+        btnQuitar.disableProperty().bind(tabla.getSelectionModel().selectedItemProperty().isNull());
+        btnQuitar.setOnAction(e -> quitar.run());
+        tabla.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.DELETE) {
+                quitar.run();
+            }
         });
-        lblStock.getStyleClass().add("estado");
-        lblStock.setVisible(limitarAlStock);
+        lblStock.getStyleClass().add("stock-actual");
+        lblStock.setGraphic(Ui.icono("mdi2p-package-variant-closed"));
+        lblStock.setVisible(false);
         Region espacio = new Region();
         HBox.setHgrow(espacio, Priority.ALWAYS);
         HBox filaCantidad = new HBox(10, campoCajas, btnAgregar, btnQuitar, espacio, lblStock);
@@ -98,7 +113,7 @@ class SelectorProductos extends VBox {
 
         List<TableColumn<Linea, String>> columnas = new ArrayList<>(List.of(
                 Ui.<Linea>columna("Producto", l -> l.producto().nombreCompleto(), 300, false),
-                Ui.<Linea>columna("Tipo", l -> l.producto().tipoProducto(), 110, false),
+                Ui.columnaInsignia("Tipo", l -> l.producto().tipoProducto(), 110, Ui::tonoTipo),
                 Ui.<Linea>columna("Unidades", l -> String.valueOf(l.cantidad()), 90, true),
                 Ui.<Linea>columna("En cajas", l -> Ui.cajas(l.cantidad(), l.producto().unidadesCaja()), 140, false)));
         if (limitarAlStock) {
@@ -106,7 +121,8 @@ class SelectorProductos extends VBox {
                     l -> String.valueOf(l.producto().stock() - l.cantidad()), 130, true));
         }
         tabla.getColumns().setAll(columnas);
-        tabla.setPlaceholder(new Label(textoVacio));
+        tabla.setPlaceholder(Ui.estadoVacio("mdi2p-package-variant", textoVacio,
+                "Elija tipo, producto y presentación, escriba la cantidad y presione Enter."));
         tabla.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         VBox.setVgrow(tabla, Priority.ALWAYS);
 

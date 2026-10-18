@@ -23,16 +23,23 @@ class CampoCajas extends HBox {
     CampoCajas() {
         super(6);
         setAlignment(Pos.CENTER_LEFT);
+        // Botones − y + a los costados del número, como en el diseño de Stitch
         spnCajas.setEditable(true);
-        spnCajas.setPrefWidth(80);
+        spnCajas.setPrefWidth(110);
+        spnCajas.getStyleClass().addAll(Spinner.STYLE_CLASS_SPLIT_ARROWS_HORIZONTAL, "spinner-cantidad");
         spnUnidades.setEditable(true);
-        spnUnidades.setPrefWidth(90);
+        spnUnidades.setPrefWidth(116);
+        spnUnidades.getStyleClass().addAll(Spinner.STYLE_CLASS_SPLIT_ARROWS_HORIZONTAL, "spinner-cantidad");
         lblPorCaja.getStyleClass().add("estado");
-        lblTotal.getStyleClass().add("cliente");
+        lblTotal.getStyleClass().add("total-cajas");
         // Recalcula mientras se escribe, no solo al perder el foco
         spnCajas.getEditor().textProperty().addListener((obs, antes, ahora) -> actualizar());
         spnUnidades.getEditor().textProperty().addListener((obs, antes, ahora) -> actualizar());
-        getChildren().addAll(new Label("Cajas"), spnCajas, lblPorCaja, new Label("+ Unidades"), spnUnidades, lblTotal);
+        Label lblCajas = new Label("Cajas");
+        lblCajas.getStyleClass().add("etiqueta-filtro");
+        Label lblUnidades = new Label("+ Unidades");
+        lblUnidades.getStyleClass().add("etiqueta-filtro");
+        getChildren().addAll(lblCajas, spnCajas, lblPorCaja, lblUnidades, spnUnidades, lblTotal);
         setProducto(null);
     }
 
