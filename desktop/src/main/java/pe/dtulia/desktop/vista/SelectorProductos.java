@@ -10,10 +10,12 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
 import pe.dtulia.desktop.modelo.Producto;
+import pe.dtulia.desktop.modelo.TipoProducto;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -22,6 +24,7 @@ import java.util.List;
 /**
  * Lista de productos con su cantidad en cajas + unidades sueltas. Se usa para lo que sale del
  * almacén hacia el jefe (limitado al stock) y para lo que la fábrica manda al almacén (sin límite).
+ * El producto se elige con tres desplegables en cadena: tipo → nombre → presentación.
  */
 class SelectorProductos extends VBox {
 
@@ -30,7 +33,12 @@ class SelectorProductos extends VBox {
     }
 
     private final boolean limitarAlStock;
+    private List<Producto> productos = List.of();
+    private final ComboBox<TipoProducto> cboTipo = new ComboBox<>();
+    private final ComboBox<String> cboNombre = new ComboBox<>();
+    /** Cada presentación es un producto distinto. */
     private final ComboBox<Producto> cboProducto = new ComboBox<>();
+    private final Label lblStock = new Label();
     private final CampoCajas campoCajas = new CampoCajas();
     private final ObservableList<Linea> lineas = FXCollections.observableArrayList();
     private final TableView<Linea> tabla = new TableView<>(lineas);
@@ -39,17 +47,22 @@ class SelectorProductos extends VBox {
         super(10);
         this.limitarAlStock = limitarAlStock;
 
-        cboProducto.setPromptText("Seleccione un producto");
-        cboProducto.setMaxWidth(Double.MAX_VALUE);
+        cboTipo.setPromptText("Tipo");
+        cboTipo.setPrefWidth(180);
+        cboTipo.setVisibleRowCount(14);
+        cboNombre.setPromptText("Seleccione un producto");
+        cboNombre.setMaxWidth(Double.MAX_VALUE);
+        cboNombre.setVisibleRowCount(14);
+        cboNombre.disableProperty().bind(cboTipo.valueProperty().isNull());
+        HBox.setHgrow(cboNombre, Priority.ALWAYS);
+        cboProducto.setPromptText("Presentación");
+        cboProducto.setPrefWidth(170);
         cboProducto.setVisibleRowCount(14);
+        cboProducto.disableProperty().bind(cboNombre.valueProperty().isNull());
         cboProducto.setConverter(new StringConverter<>() {
             @Override
             public String toString(Producto p) {
-                if (p == null) {
-                    return "";
-                }
-                String texto = p.tipoProducto() + " · " + p.nombreCompleto();
-                return limitarAlStock ? texto + " (almacén: " + Ui.cajas(p.stock(), p.unidadesCaja()) + ")" : texto;
+                return p == null ? "" : p.presentacion();
             }
 
             @Override
@@ -57,7 +70,15 @@ class SelectorProductos extends VBox {
                 return null;
             }
         });
-        cboProducto.valueProperty().addListener((obs, antes, ahora) -> campoCajas.setProducto(ahora));
+
+        cboTipo.valueProperty().addListener((obs, antes, ahora) -> mostrarNombres());
+        cboNombre.valueProperty().addListener((obs, antes, ahora) -> mostrarPresentaciones());
+        cboProducto.valueProperty().addListener((obs, antes, ahora) -> {
+            campoCajas.setProducto(ahora);
+            lblStock.setText(ahora == null ? "" : "En almacén: " + Ui.cajas(ahora.stock(), ahora.unidadesCaja()));
+        });
+        HBox filaProducto = new HBox(8, cboTipo, cboNombre, cboProducto);
+        filaProducto.setAlignment(Pos.CENTER_LEFT);
 
         Button btnAgregar = new Button("Agregar");
         btnAgregar.setOnAction(e -> agregar());
@@ -68,7 +89,11 @@ class SelectorProductos extends VBox {
                 lineas.remove(linea);
             }
         });
-        HBox filaCantidad = new HBox(10, campoCajas, btnAgregar, btnQuitar);
+        lblStock.getStyleClass().add("estado");
+        lblStock.setVisible(limitarAlStock);
+        Region espacio = new Region();
+        HBox.setHgrow(espacio, Priority.ALWAYS);
+        HBox filaCantidad = new HBox(10, campoCajas, btnAgregar, btnQuitar, espacio, lblStock);
         filaCantidad.setAlignment(Pos.CENTER_LEFT);
 
         List<TableColumn<Linea, String>> columnas = new ArrayList<>(List.of(
@@ -85,15 +110,20 @@ class SelectorProductos extends VBox {
         tabla.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         VBox.setVgrow(tabla, Priority.ALWAYS);
 
-        getChildren().addAll(cboProducto, filaCantidad, tabla);
+        getChildren().addAll(filaProducto, filaCantidad, tabla);
     }
 
     /** Si se limita al stock, solo se ofrecen los productos que hay en el almacén. */
-    void setProductos(List<Producto> productos) {
-        cboProducto.getItems().setAll(productos.stream()
+    void setProductos(List<Producto> lista) {
+        productos = lista.stream()
                 .filter(p -> !limitarAlStock || p.stock() > 0)
                 .sorted(Comparator.comparing(Producto::tipoProducto).thenComparing(Producto::nombre)
                         .thenComparingLong(Producto::presentacionId))
+                .toList();
+        // Solo los tipos que tienen productos
+        cboTipo.getItems().setAll(productos.stream()
+                .map(p -> new TipoProducto(p.tipoProductoId(), p.tipoProducto(), null))
+                .distinct()
                 .toList());
     }
 
@@ -101,10 +131,28 @@ class SelectorProductos extends VBox {
         return lineas;
     }
 
+    /** Llena los nombres del tipo elegido. */
+    private void mostrarNombres() {
+        TipoProducto tipo = cboTipo.getValue();
+        cboNombre.getItems().setAll(tipo == null ? List.of()
+                : productos.stream().filter(p -> p.tipoProductoId() == tipo.id()).map(Producto::nombre).distinct().toList());
+        cboNombre.setValue(null);
+    }
+
+    /** Llena las presentaciones del producto elegido; si solo tiene una, queda elegida. */
+    private void mostrarPresentaciones() {
+        TipoProducto tipo = cboTipo.getValue();
+        String nombre = cboNombre.getValue();
+        List<Producto> presentaciones = tipo == null || nombre == null ? List.of()
+                : productos.stream().filter(p -> p.tipoProductoId() == tipo.id() && p.nombre().equals(nombre)).toList();
+        cboProducto.getItems().setAll(presentaciones);
+        cboProducto.setValue(presentaciones.size() == 1 ? presentaciones.get(0) : null);
+    }
+
     private void agregar() {
         Producto producto = cboProducto.getValue();
         if (producto == null) {
-            Ui.mostrarError(ventana(), "Seleccione un producto.");
+            Ui.mostrarError(ventana(), cboNombre.getValue() == null ? "Seleccione un producto." : "Seleccione la presentación.");
             return;
         }
         int cantidad = campoCajas.total();
@@ -130,7 +178,8 @@ class SelectorProductos extends VBox {
         } else {
             lineas.add(new Linea(producto, total));
         }
-        cboProducto.getSelectionModel().clearSelection();
+        // Se mantiene el tipo para seguir agregando productos parecidos
+        cboNombre.setValue(null);
         campoCajas.limpiar();
     }
 
