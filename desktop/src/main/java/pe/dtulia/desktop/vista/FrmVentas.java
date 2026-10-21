@@ -265,7 +265,7 @@ public class FrmVentas extends BorderPane {
         tablaCarrito.setPlaceholder(Ui.estadoVacio("mdi2c-cart-outline", "El pedido está vacío",
                 "Elija un precio en la tabla y presione Enter para agregarlo."));
         tablaCarrito.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-        tablaCarrito.setMinHeight(100);
+        tablaCarrito.setMinHeight(170);
         tablaCarrito.setPrefHeight(150);
         VBox.setVgrow(tablaCarrito, Priority.ALWAYS);
 

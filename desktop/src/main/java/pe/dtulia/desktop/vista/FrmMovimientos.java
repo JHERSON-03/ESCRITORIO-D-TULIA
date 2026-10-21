@@ -5,13 +5,15 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -24,8 +26,6 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -61,7 +61,7 @@ public class FrmMovimientos extends BorderPane {
     /** Opciones del filtro del Kardex: los tipos manuales más los que genera la base de datos. */
     private static final List<String> FILTROS_KARDEX = List.of(TODOS, ENTRADA, "ENTRADA_PRODUCCION", MERMA, AJUSTE,
             "SALIDA_VENTA", "SALIDA_VIAJE", "RETORNO_VIAJE", "ANULACION");
-    private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm");
 
     private final Servicios servicios;
     private final Empleado empleado;
@@ -100,8 +100,15 @@ public class FrmMovimientos extends BorderPane {
         this.alCambiarStock = alCambiarStock;
         getStyleClass().add("formulario");
 
-        setTop(crearFormulario());
-        setCenter(crearKardex());
+        // Izquierda: registrar (cabe en una columna con las etiquetas arriba). Derecha: Kardex, que
+        // necesita más ancho por sus seis columnas
+        VBox formulario = crearFormulario();
+        formulario.setMinWidth(empleado.esAdministrador() ? 500 : 320);
+        ScrollPane panelFormulario = Ui.desplazable(formulario);
+        SplitPane columnas = new SplitPane(panelFormulario, crearKardex());
+        columnas.getStyleClass().add("columnas");
+        columnas.setDividerPositions(0.4);
+        setCenter(columnas);
 
         cboTipo.valueProperty().addListener((obs, antes, ahora) -> adaptarAlTipo());
         cboTipoProducto.valueProperty().addListener((obs, antes, ahora) -> {
@@ -142,7 +149,6 @@ public class FrmMovimientos extends BorderPane {
         cboNombre.setMaxWidth(Double.MAX_VALUE);
         cboNombre.setVisibleRowCount(14);
         cboNombre.disableProperty().bind(cboTipoProducto.valueProperty().isNull());
-        HBox.setHgrow(cboNombre, Priority.ALWAYS);
         cboProducto.setPromptText("Presentación");
         cboProducto.setPrefWidth(170);
         cboProducto.setVisibleRowCount(14);
@@ -175,42 +181,43 @@ public class FrmMovimientos extends BorderPane {
         progresoRegistro.setMaxSize(16, 16);
         lblCantidad.getStyleClass().add("etiqueta-filtro");
 
-        GridPane grilla = new GridPane();
-        grilla.setHgap(10);
-        grilla.setVgap(8);
-        grilla.addRow(0, etiqueta("Tipo de producto"), cboTipoProducto);
-        HBox producto = new HBox(8, cboNombre, cboProducto);
-        grilla.addRow(1, etiqueta("Producto"), producto, etiqueta("Stock actual"), lblStockActual);
-        ColumnConstraints etiqueta = new ColumnConstraints();
-        ColumnConstraints campo = new ColumnConstraints(200, 300, Double.MAX_VALUE);
-        campo.setHgrow(Priority.ALWAYS);
-        grilla.getColumnConstraints().setAll(etiqueta, campo, etiqueta, campo);
+        // Producto y presentación lado a lado; el stock actual debajo
+        VBox nombre = campo("Producto", cboNombre);
+        HBox.setHgrow(nombre, Priority.ALWAYS);
+        HBox producto = new HBox(10, nombre, campo("Presentación", cboProducto));
+        HBox stock = new HBox(8, etiqueta("Stock actual"), lblStockActual);
+        stock.setAlignment(Pos.CENTER_LEFT);
         if (!empleado.esAdministrador()) {
             // El almacenero solo consulta
-            VBox consulta = Ui.seccion("Consultar Kardex", "mdi2h-history", grilla);
             Label soloConsulta = new Label("Modo consulta: los movimientos los registra la administradora.",
                     Ui.icono("mdi2l-lock-outline"));
             soloConsulta.getStyleClass().add("ayuda");
-            consulta.getChildren().add(soloConsulta);
-            return consulta;
+            soloConsulta.setWrapText(true);
+            return espaciada(Ui.seccion("Consultar Kardex", "mdi2h-history",
+                    campo("Tipo de producto", cboTipoProducto), producto, stock, soloConsulta));
         }
 
         // ENTRADA: cajas + unidades; MERMA y AJUSTE: unidades
         HBox cantidad = new HBox(spnCantidad, campoCajas);
         cantidad.setAlignment(Pos.CENTER_LEFT);
-        // Tipo y cantidad en la misma fila, ocupando las tres columnas para que la cantidad no se recorte
-        HBox movimiento = new HBox(16, crearSegmentoTipo(), lblCantidad, cantidad);
-        movimiento.setAlignment(Pos.CENTER_LEFT);
-        grilla.addRow(2, etiqueta("Movimiento"), movimiento);
-        GridPane.setColumnSpan(movimiento, 3);
-        grilla.addRow(3, etiqueta("Referencia"), txtReferencia);
-        GridPane.setColumnSpan(txtReferencia, 3);
+        HBox segmento = crearSegmentoTipo();
+        segmento.setMaxWidth(Region.USE_PREF_SIZE);
+        HBox acciones = new HBox(btnRegistrar);
+        acciones.setAlignment(Pos.CENTER_RIGHT);
+        return espaciada(Ui.seccion("Registrar movimiento de stock", "mdi2s-swap-horizontal",
+                campo("Tipo de producto", cboTipoProducto), producto, stock,
+                campo("Movimiento", segmento), new VBox(4, lblCantidad, cantidad),
+                campo("Referencia", txtReferencia), lblAyuda, acciones));
+    }
 
-        Region espacio = new Region();
-        HBox.setHgrow(espacio, Priority.ALWAYS);
-        HBox acciones = new HBox(10, lblAyuda, espacio, btnRegistrar);
-        acciones.setAlignment(Pos.CENTER_LEFT);
-        return Ui.seccion("Registrar movimiento de stock", "mdi2s-swap-horizontal", grilla, acciones);
+    /** Etiqueta encima del control: en la columna angosta el formulario respira mejor. */
+    private static VBox campo(String texto, Node control) {
+        return new VBox(4, etiqueta(texto), control);
+    }
+
+    private static VBox espaciada(VBox seccion) {
+        seccion.setSpacing(14);
+        return seccion;
     }
 
     /** Entrada / Merma / Ajuste como botones segmentados; manejan el mismo cboTipo que usa la lógica. */
@@ -249,13 +256,18 @@ public class FrmMovimientos extends BorderPane {
 
     private VBox crearKardex() {
         tablaKardex.getColumns().setAll(List.of(
-                columna("Fecha", m -> m.fecha().atZoneSameInstant(ZoneId.systemDefault()).format(FECHA), 140, false),
-                Ui.columnaInsignia("Movimiento", Movimiento::tipo, 170, FrmMovimientos::tonoMovimiento),
+                columna("Fecha", m -> m.fecha().atZoneSameInstant(ZoneId.systemDefault()).format(FECHA), 115, false),
+                Ui.columnaInsignia("Movimiento", Movimiento::tipo, 150, FrmMovimientos::tonoMovimiento),
                 columnaVariacion(),
-                columna("Stock previo", m -> String.valueOf(m.stockPrevio()), 100, true),
-                columna("Stock final", m -> String.valueOf(m.stockPosterior()), 100, true),
-                columna("Referencia", m -> m.referencia() == null ? "" : m.referencia(), 260, false)));
-        tablaKardex.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+                // Stock previo → final en una sola columna: así el Kardex entra junto al formulario
+                columna("Stock", m -> m.stockPrevio() + " → " + m.stockPosterior(), 110, true),
+                columna("Referencia", m -> m.referencia() == null ? "" : m.referencia(), 180, false)));
+        tablaKardex.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        // Mínimos para que ninguna cabecera se corte en una ventana de ~1100 px
+        double[] minimos = {105, 105, 85, 95, 70};
+        for (int i = 0; i < minimos.length; i++) {
+            tablaKardex.getColumns().get(i).setMinWidth(minimos[i]);
+        }
         tablaKardex.setMinHeight(150);
         VBox.setVgrow(tablaKardex, Priority.ALWAYS);
 
@@ -263,6 +275,7 @@ public class FrmMovimientos extends BorderPane {
         btnAnular.setManaged(empleado.esAdministrador());
         btnAnular.disableProperty().bind(tablaKardex.getSelectionModel().selectedItemProperty().isNull());
         btnAnular.setOnAction(e -> anular());
+        btnAnular.setMinWidth(Region.USE_PREF_SIZE);
         lblResumen.getStyleClass().add("estado");
         Region espacio = new Region();
         HBox.setHgrow(espacio, Priority.ALWAYS);
@@ -274,10 +287,8 @@ public class FrmMovimientos extends BorderPane {
 
         VBox kardex = Ui.seccion("Kardex del producto (más reciente primero)", "mdi2h-history", crearFiltro(),
                 tablaKardex, pie);
-        VBox.setVgrow(kardex, Priority.ALWAYS);
-        VBox contenedor = new VBox(kardex);
-        contenedor.setPadding(new Insets(10, 0, 0, 0));
-        return contenedor;
+        kardex.setMinWidth(420);
+        return kardex;
     }
 
     /** Desplegable con el tipo de movimiento y botón Mostrar (p. ej. ver solo las SALIDA_VENTA). */
@@ -285,7 +296,10 @@ public class FrmMovimientos extends BorderPane {
         cboFiltro.setValue(TODOS);
         cboFiltro.setPrefWidth(200);
         btnMostrar.setOnAction(e -> mostrarFiltrado());
-        HBox barra = new HBox(10, etiqueta("Tipo de movimiento"), cboFiltro, btnMostrar);
+        Label lblFiltro = etiqueta("Tipo de movimiento");
+        lblFiltro.setMinWidth(Region.USE_PREF_SIZE);
+        btnMostrar.setMinWidth(Region.USE_PREF_SIZE);
+        HBox barra = new HBox(10, lblFiltro, cboFiltro, btnMostrar);
         barra.setAlignment(Pos.CENTER_LEFT);
         return barra;
     }
@@ -355,7 +369,7 @@ public class FrmMovimientos extends BorderPane {
                 }
             }
         });
-        columna.setPrefWidth(90);
+        columna.setPrefWidth(85);
         columna.setSortable(false);
         columna.getStyleClass().add("numero");
         return columna;
