@@ -1278,6 +1278,12 @@
     -fx-font-weight: bold;
 }
 
+/* Observación de un envío de producción: en negrita para que no pase desapercibida */
+.observacion {
+    -fx-text-fill: -dt-texto;
+    -fx-font-weight: bold;
+}
+
 .buscador > .ikonli-font-icon {
     -fx-icon-color: -dt-icono;
     -fx-icon-size: 16px;

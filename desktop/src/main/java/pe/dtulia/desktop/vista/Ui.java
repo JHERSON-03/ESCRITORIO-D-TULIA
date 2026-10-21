@@ -23,6 +23,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TableCell;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.TableColumn;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
@@ -462,6 +463,18 @@ final class Ui {
         if (numerica) {
             columna.getStyleClass().add("numero");
         }
+        return columna;
+    }
+
+    /** Al pasar el mouse sobre la celda se ve el texto completo (nombres, referencias y notas largas). */
+    static <S> TableColumn<S, String> conTextoCompleto(TableColumn<S, String> columna) {
+        var fabrica = columna.getCellFactory();
+        columna.setCellFactory(c -> {
+            TableCell<S, String> celda = fabrica.call(c);
+            celda.textProperty().addListener((obs, antes, texto) ->
+                    celda.setTooltip(texto == null || texto.isBlank() ? null : new Tooltip(texto)));
+            return celda;
+        });
         return columna;
     }
 

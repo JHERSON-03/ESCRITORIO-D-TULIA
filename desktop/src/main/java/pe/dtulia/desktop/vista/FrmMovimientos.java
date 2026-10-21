@@ -13,7 +13,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -100,15 +99,16 @@ public class FrmMovimientos extends BorderPane {
         this.alCambiarStock = alCambiarStock;
         getStyleClass().add("formulario");
 
-        // Izquierda: registrar (cabe en una columna con las etiquetas arriba). Derecha: Kardex, que
-        // necesita más ancho por sus seis columnas
+        // Izquierda: registrar, con ancho fijo (lo justo para la fila de cajas + unidades). Derecha: el
+        // Kardex se queda con todo el resto, porque es el que necesita espacio para sus columnas
         VBox formulario = crearFormulario();
-        formulario.setMinWidth(empleado.esAdministrador() ? 500 : 320);
+        formulario.setMinWidth(500);
         ScrollPane panelFormulario = Ui.desplazable(formulario);
-        SplitPane columnas = new SplitPane(panelFormulario, crearKardex());
-        columnas.getStyleClass().add("columnas");
-        columnas.setDividerPositions(0.4);
-        setCenter(columnas);
+        panelFormulario.setPrefWidth(500);
+        panelFormulario.setMaxWidth(500);
+        VBox kardex = crearKardex();
+        HBox.setHgrow(kardex, Priority.ALWAYS);
+        setCenter(new HBox(10, panelFormulario, kardex));
 
         cboTipo.valueProperty().addListener((obs, antes, ahora) -> adaptarAlTipo());
         cboTipoProducto.valueProperty().addListener((obs, antes, ahora) -> {
@@ -261,12 +261,15 @@ public class FrmMovimientos extends BorderPane {
                 columnaVariacion(),
                 // Stock previo → final en una sola columna: así el Kardex entra junto al formulario
                 columna("Stock", m -> m.stockPrevio() + " → " + m.stockPosterior(), 110, true),
-                columna("Referencia", m -> m.referencia() == null ? "" : m.referencia(), 180, false)));
+                columnaReferencia()));
         tablaKardex.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-        // Mínimos para que ninguna cabecera se corte en una ventana de ~1100 px
+        // Mínimos para que ninguna cabecera se corte en una ventana de ~1100 px; topes para que el
+        // espacio que sobra en pantallas anchas vaya a la Referencia
         double[] minimos = {105, 105, 85, 95, 70};
+        double[] maximos = {140, 200, 110, 140, Double.MAX_VALUE};
         for (int i = 0; i < minimos.length; i++) {
             tablaKardex.getColumns().get(i).setMinWidth(minimos[i]);
+            tablaKardex.getColumns().get(i).setMaxWidth(maximos[i]);
         }
         tablaKardex.setMinHeight(150);
         VBox.setVgrow(tablaKardex, Priority.ALWAYS);
@@ -373,6 +376,11 @@ public class FrmMovimientos extends BorderPane {
         columna.setSortable(false);
         columna.getStyleClass().add("numero");
         return columna;
+    }
+
+    /** Referencia con el texto completo al pasar el mouse (los envíos de viaje suelen cortarse). */
+    private static TableColumn<Movimiento, String> columnaReferencia() {
+        return Ui.conTextoCompleto(columna("Referencia", m -> m.referencia() == null ? "" : m.referencia(), 180, false));
     }
 
     // ------------------------------------------------------------------ datos

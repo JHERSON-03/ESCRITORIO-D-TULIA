@@ -64,6 +64,8 @@ public class FrmProduccion extends BorderPane {
     private final Label lblMasAntiguo = new Label("—");
     private final Label lblTituloDetalle = new Label();
     private final Label lblEstadoDetalle = Ui.insignia("", "neutro");
+    /** Observación del envío (lo que anotó quien lo recibió o anuló); oculta si no hay. */
+    private final Label lblObservacion = new Label();
     private final ObservableList<ProduccionProducto> productos = FXCollections.observableArrayList();
     private final TableView<ProduccionProducto> tablaProductos = new TableView<>(productos);
     private final ObjectProperty<ProduccionDetalle> detalle = new SimpleObjectProperty<>();
@@ -132,16 +134,17 @@ public class FrmProduccion extends BorderPane {
                 Ui.<ProduccionResumen>columna("Enviado", p -> FrmViajes.fecha(p.fechaEnvio()), 92, false),
                 Ui.<ProduccionResumen>columna("Días", p -> String.valueOf(p.dias()), 52, true,
                         p -> p.enCamino() && p.dias() > 0 ? "texto-alerta" : null),
-                Ui.<ProduccionResumen>columna("Envió", ProduccionResumen::enviadoPor, 110, false),
-                Ui.<ProduccionResumen>columna("Referencia", p -> p.referencia() == null ? "" : p.referencia(), 95, false),
+                Ui.conTextoCompleto(Ui.<ProduccionResumen>columna("Envió", ProduccionResumen::enviadoPor, 110, false)),
+                Ui.conTextoCompleto(Ui.<ProduccionResumen>columna("Referencia",
+                        p -> p.referencia() == null ? "" : p.referencia(), 95, false)),
                 Ui.<ProduccionResumen>columna("Productos", p -> String.valueOf(p.productos()), 82, true),
                 Ui.<ProduccionResumen>columna("Unidades", p -> String.valueOf(p.enviado()), 80, true),
                 Ui.<ProduccionResumen>columna("Llegaron", p -> p.recibido() == null ? PENDIENTE : String.valueOf(p.recibido()), 78, true),
                 Ui.<ProduccionResumen>columna("Diferencia", p -> p.diferencia() == null ? PENDIENTE : String.valueOf(p.diferencia()), 86,
                         true, p -> p.diferencia() == null ? null : p.diferencia() == 0 ? "texto-ok" : "texto-alerta"),
                 Ui.columnaInsignia("Estado", ProduccionResumen::estadoTexto, 108, Ui::tonoEstado),
-                Ui.<ProduccionResumen>columna("Recibió / anuló", p -> p.cerradoPor() == null ? "" : p.cerradoPor(), 110, false),
-                Ui.<ProduccionResumen>columna("Observación", p -> p.observacion() == null ? "" : p.observacion(), 110, false)));
+                Ui.conTextoCompleto(Ui.<ProduccionResumen>columna("Recibió / anuló",
+                        p -> p.cerradoPor() == null ? "" : p.cerradoPor(), 110, false))));
         tablaEnvios.setRowFactory(t -> new TableRow<>() {
             @Override
             protected void updateItem(ProduccionResumen p, boolean vacio) {
@@ -189,7 +192,6 @@ public class FrmProduccion extends BorderPane {
     private VBox crearDetalle() {
         tablaProductos.getColumns().setAll(List.of(
                 Ui.<ProduccionProducto>columna("Producto", ProduccionProducto::nombreCompleto, 240, false),
-                Ui.columnaInsignia("Tipo", ProduccionProducto::tipoProducto, 100, Ui::tonoTipo),
                 Ui.<ProduccionProducto>columna("Envió", p -> String.valueOf(p.enviado()), 70, true),
                 Ui.<ProduccionProducto>columna("Envió en cajas", p -> Ui.cajas(p.enviado(), p.unidadesCaja()), 130, false),
                 Ui.<ProduccionProducto>columna("Llegó", p -> p.recibido() == null ? PENDIENTE : String.valueOf(p.recibido()), 70, true),
@@ -209,7 +211,16 @@ public class FrmProduccion extends BorderPane {
         lblEstadoDetalle.managedProperty().bind(lblEstadoDetalle.visibleProperty());
         HBox encabezado = new HBox(10, lblTituloDetalle, lblEstadoDetalle);
         encabezado.setAlignment(Pos.CENTER_LEFT);
-        VBox seccion = new VBox(10, encabezado, tablaProductos);
+        Label etiquetaObservacion = new Label("Observación:", Ui.icono("mdi2c-comment-text-outline"));
+        etiquetaObservacion.getStyleClass().add("etiqueta-filtro");
+        etiquetaObservacion.setMinWidth(Region.USE_PREF_SIZE);
+        lblObservacion.setWrapText(true);
+        lblObservacion.getStyleClass().add("observacion");
+        HBox observacion = new HBox(8, etiquetaObservacion, lblObservacion);
+        observacion.setAlignment(Pos.TOP_LEFT);
+        observacion.visibleProperty().bind(lblObservacion.textProperty().isNotEmpty());
+        observacion.managedProperty().bind(observacion.visibleProperty());
+        VBox seccion = new VBox(10, encabezado, observacion, tablaProductos);
         seccion.getStyleClass().add("seccion");
         seccion.setMinHeight(170);
         return seccion;
@@ -285,6 +296,7 @@ public class FrmProduccion extends BorderPane {
         if (nuevo == null) {
             lblTituloDetalle.setText("Detalle del envío");
             lblEstadoDetalle.setVisible(false);
+            lblObservacion.setText("");
             productos.clear();
             return;
         }
@@ -296,6 +308,7 @@ public class FrmProduccion extends BorderPane {
         lblEstadoDetalle.getStyleClass().removeIf(c -> c.startsWith("insignia-"));
         lblEstadoDetalle.getStyleClass().add("insignia-" + Ui.tonoEstado(p.estadoTexto()));
         lblEstadoDetalle.setVisible(true);
+        lblObservacion.setText(p.observacion() == null ? "" : p.observacion().trim());
         productos.setAll(nuevo.productos());
     }
 

@@ -182,12 +182,11 @@ public class FrmViajes extends BorderPane {
     private VBox crearDetalle() {
         tablaProductos.getColumns().setAll(List.of(
                 Ui.<ViajeProducto>columna("Producto", ViajeProducto::nombreCompleto, 230, false),
-                Ui.columnaInsignia("Tipo", ViajeProducto::tipoProducto, 100, Ui::tonoTipo),
-                Ui.<ViajeProducto>columna("Llevó", p -> String.valueOf(p.llevado()), 65, true),
+                Ui.<ViajeProducto>columna("Llevó", p -> p.llevado() + " u.", 70, true),
                 Ui.<ViajeProducto>columna("En cajas", p -> Ui.cajas(p.llevado(), p.unidadesCaja()), 120, false),
-                Ui.<ViajeProducto>columna("Vendió", p -> liquidado() ? String.valueOf(p.vendido()) : PENDIENTE, 65, true),
-                Ui.<ViajeProducto>columna("Regresó", p -> liquidado() ? String.valueOf(p.devuelto()) : PENDIENTE, 70, true),
-                Ui.<ViajeProducto>columna("Merma", p -> liquidado() ? String.valueOf(p.merma()) : PENDIENTE, 65, true),
+                Ui.<ViajeProducto>columna("Vendió", p -> liquidado() ? p.vendido() + " u." : PENDIENTE, 70, true),
+                Ui.<ViajeProducto>columna("Regresó", p -> liquidado() ? p.devuelto() + " u." : PENDIENTE, 75, true),
+                Ui.<ViajeProducto>columna("Merma", p -> liquidado() ? p.merma() + " u." : PENDIENTE, 70, true),
                 Ui.<ViajeProducto>columna("Motivo", p -> p.motivoMerma() == null ? "" : p.motivoMerma(), 120, false),
                 Ui.<ViajeProducto>columna("Diferencia", p -> !liquidado() ? PENDIENTE : p.diferencia() == 0 ? "0 ✓"
                                 : p.diferencia() > 0 ? "Faltan " + p.diferencia() : "Sobran " + (-p.diferencia()), 100, false,
