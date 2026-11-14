@@ -6,8 +6,9 @@
 -- presentaciones de cada producto y pasa las ventas al almacén.
 -- Es idempotente: solo inserta lo que no existe.
 --
--- Usuario inicial (cambia la contraseña al empezar a usar el sistema):
---   Documento: 00000001   Contraseña: DTulia2026!   Cargo: ADMINISTRADOR
+-- Usuario inicial: documento 00000001, cargo ADMINISTRADOR.
+-- La contraseña inicial NO va en este archivo: defínela al crear el usuario
+-- (ver README, "Crear empleados") y cámbiala al empezar a usar el sistema.
 -- =====================================================================
 
 set search_path = public, extensions;
@@ -44,9 +45,9 @@ insert into clientes (cliente_tipo_documento, cliente_dni_ruc, cliente_nombre_ra
 values ('VARIOS', '00000000', 'CLIENTES VARIOS')
 on conflict (cliente_dni_ruc) do nothing;
 
--- Administrador inicial (solo si aún no existe)
-select fn_empleado_registrar('ADMINISTRADOR', '00000001', 'ADMINISTRADOR D''TULIA', 'DTulia2026!')
- where not exists (select 1 from empleados where empleado_documento = '00000001');
+-- Administrador inicial: NO se crea aquí para no guardar contraseñas en el repositorio.
+-- Créalo a mano, reemplazando CAMBIA_ESTA_CLAVE por una contraseña de al menos 8 caracteres:
+--   select fn_empleado_registrar('ADMINISTRADOR', '00000001', 'ADMINISTRADOR D''TULIA', 'CAMBIA_ESTA_CLAVE');
 
 -- Todo sale del almacén de Trujillo; las demás sedes son ciudades de destino
 update sedes set sede_es_almacen = true

@@ -127,7 +127,7 @@ Lo recibido de la fábrica no se anula desde el Kardex; si hubo un error se corr
 
 ```sql
 -- cargo: ADMINISTRADOR | ALMACENERO
-select fn_empleado_registrar('ADMINISTRADOR', '45678912', 'Rosa Paredes Soto', 'Contraseña2026!');
+select fn_empleado_registrar('ADMINISTRADOR', '12345678', 'NOMBRE APELLIDOS', 'CAMBIA_ESTA_CLAVE');
 ```
 
 Si el documento ya existe, actualiza su cargo, nombre y contraseña (sirve también para cambiar claves).
@@ -221,9 +221,9 @@ Se eligió **JavaFX** sobre Swing porque ofrece `TableView` con ordenamiento y f
 
 | Documento | Contraseña | Cargo |
 |---|---|---|
-| 00000001 | DTulia2026! | ADMINISTRADOR |
+| 00000001 | la que definas al crearlo | ADMINISTRADOR |
 
-Crea a tu personal con `fn_empleado_registrar` (ver Paso 1) y cambia la contraseña del administrador inicial ejecutando la misma función con una nueva clave.
+Crea el administrador inicial con `fn_empleado_registrar` (ver "Crear empleados") usando una contraseña propia. Luego crea a tu personal con la misma función. Para cambiar una clave, vuelve a ejecutarla con la nueva.
 
 ## Instalar en la laptop de la fábrica
 
